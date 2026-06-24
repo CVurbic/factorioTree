@@ -4,6 +4,7 @@ import type { RawMaterial } from '../utils/buildTree'
 interface Props {
   items: RawMaterial[]
   quantity: number
+  side?: 'left' | 'right'
 }
 
 function fmtAmount(n: number): string {
@@ -12,7 +13,7 @@ function fmtAmount(n: number): string {
   return Number.isInteger(r) ? String(r) : r.toFixed(1)
 }
 
-export function RawMaterialsPanel({ items, quantity }: Props) {
+export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
   const [open, setOpen] = useState(true)
   const [imgFailed, setImgFailed] = useState<Record<string, boolean>>({})
 
@@ -20,7 +21,7 @@ export function RawMaterialsPanel({ items, quantity }: Props) {
     <div style={{
       position: 'absolute',
       top: 12,
-      right: 12,
+      ...(side === 'left' ? { left: 12 } : { right: 12 }),
       width: open ? 220 : 40,
       background: '#161b22',
       border: '1px solid #30363d',
@@ -48,7 +49,12 @@ export function RawMaterialsPanel({ items, quantity }: Props) {
         )}
         <svg
           width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth={2}
-          style={{ transform: open ? 'rotate(0deg)' : 'rotate(180deg)', flexShrink: 0, transition: 'transform 0.2s' }}
+          style={{
+            transform: side === 'left'
+              ? (open ? 'rotate(180deg)' : 'rotate(0deg)')
+              : (open ? 'rotate(0deg)' : 'rotate(180deg)'),
+            flexShrink: 0, transition: 'transform 0.2s',
+          }}
         >
           <path d="M9 18l6-6-6-6" />
         </svg>

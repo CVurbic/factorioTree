@@ -25,6 +25,7 @@ import { FactorioNode } from './components/FactorioNode'
 import { TreeFrame } from './components/TreeFrame'
 import { ItemPickerModal } from './components/ItemPickerModal'
 import { RawMaterialsPanel } from './components/RawMaterialsPanel'
+import { BlueprintsPanel } from './components/BlueprintsPanel'
 import { Legend } from './components/Legend'
 
 const nodeTypes: NodeTypes = { factorioNode: FactorioNode, treeFrame: TreeFrame }
@@ -267,6 +268,12 @@ export default function App() {
     setActiveItemIds(prev => prev.includes(itemId) ? prev : [...prev, itemId])
   }, [])
 
+  // Load a community blueprint (replaces canvas)
+  const loadBlueprint = useCallback((items: string[], qty: number) => {
+    setActiveItemIds(items.filter(validItemId))
+    setQuantity(qty)
+  }, [])
+
   // Replace a specific tree (double-click node)
   function replaceItem(treeIndex: number, newItemId: string) {
     setActiveItemIds(prev => {
@@ -497,7 +504,12 @@ export default function App() {
             onRemoveTree={removeTreeByIndex}
             exportName={exportName}
           />
-          <RawMaterialsPanel items={rawMaterials} quantity={quantity} />
+          <RawMaterialsPanel items={rawMaterials} quantity={quantity} side="left" />
+          <BlueprintsPanel
+            activeItemIds={activeItemIds}
+            quantity={quantity}
+            onLoadBlueprint={loadBlueprint}
+          />
         </div>
 
         {/* ── modal ── */}
