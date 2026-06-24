@@ -1,4 +1,4 @@
-import type { NodeProps } from '@xyflow/react'
+import type { Node, NodeProps } from '@xyflow/react'
 
 export interface TreeFrameData {
   label: string
@@ -7,7 +7,9 @@ export interface TreeFrameData {
   [key: string]: unknown
 }
 
-export function TreeFrame({ data, selected }: NodeProps<TreeFrameData>) {
+type TreeFrameNodeType = Node<TreeFrameData, 'treeFrame'>
+
+export function TreeFrame({ data, selected }: NodeProps<TreeFrameNodeType>) {
   return (
     <div style={{
       width: '100%',

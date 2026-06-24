@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Handle, Position } from '@xyflow/react'
-import type { NodeProps } from '@xyflow/react'
+import type { Node, NodeProps } from '@xyflow/react'
 import type { FactorioNodeData } from '../types'
 import { recipes } from '../data/recipes-generated'
+
+type FactorioNodeType = Node<FactorioNodeData, 'factorioNode'>
 
 const GROUP_COLORS: Record<string, { border: string; bg: string; raw: string }> = {
   'logistics':             { border: '#3b82f6', bg: '#141b2d', raw: '#1a2235' },
@@ -25,7 +27,7 @@ function fmtTime(t: number): string {
   return Number.isInteger(t) ? `${t}s` : `${t.toFixed(1)}s`
 }
 
-export function FactorioNode({ data }: NodeProps<FactorioNodeData>) {
+export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
   const [imgFailed, setImgFailed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [showUsage, setShowUsage] = useState(false)

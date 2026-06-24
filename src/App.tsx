@@ -44,7 +44,7 @@ function validItemId(id: string) { return recipes.some(r => r.id === id) }
 // ── FlowCanvas (needs ReactFlowProvider context) ──────────────────────────────
 
 interface FlowCanvasProps {
-  nodes: Node<FactorioNodeData>[]
+  nodes: Node[]
   edges: Edge[]
   activeKey: string   // changes when active items list changes → triggers fitView
   nodeTypes: NodeTypes
@@ -55,7 +55,7 @@ interface FlowCanvasProps {
 
 function FlowCanvas({ nodes, edges, activeKey, nodeTypes, onNodeDoubleClick, onRemoveTree, exportName }: FlowCanvasProps) {
   const { fitView, getNodes } = useReactFlow()
-  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(nodes)
+  const [flowNodes, setFlowNodes] = useNodesState(nodes)
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(edges)
   const flowRef = useRef<HTMLDivElement>(null)
 
@@ -82,7 +82,7 @@ function FlowCanvas({ nodes, edges, activeKey, nodeTypes, onNodeDoubleClick, onR
     if (dirty) {
       localStorage.setItem('ft-frame-pos', JSON.stringify(Object.fromEntries(framePos.current)))
     }
-    setFlowNodes(nds => applyNodeChanges(changes, nds))
+    setFlowNodes(nds => applyNodeChanges(changes, nds) as Node[])
   }
 
   // Rebuild: restore frame positions; clean up stale entries for removed frames
@@ -275,7 +275,7 @@ export default function App() {
 
   // Build all trees side by side
   const { nodes, edges } = useMemo(() => {
-    const allNodes: Node<FactorioNodeData>[] = []
+    const allNodes: Node[] = []
     const allEdges: Edge[] = []
     let xOffset = 0
 
