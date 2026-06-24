@@ -317,14 +317,18 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
               usedIn.map(r => {
                 const ingAmt = r.ingredients.find(ing => ing.id === data.recipeId)?.amount ?? 1
                 return (
-                  <div key={r.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '4px 4px',
-                    borderRadius: 3,
-                    marginBottom: 2,
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#262a34')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  <div
+                    key={r.id}
+                    onClick={() => { data.onAddItem(r.id); setShowUsage(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '4px 4px',
+                      borderRadius: 3,
+                      marginBottom: 2,
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#262a34')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     {/* result icon */}
                     <div style={{ width: 28, height: 28, overflow: 'hidden', flexShrink: 0, background: '#0d1117', borderRadius: 3, border: '1px solid #2a2e3d' }}>
@@ -350,6 +354,8 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
                         →×{r.resultAmount}
                       </span>
                     )}
+                    {/* add hint */}
+                    <span style={{ color: '#4b5563', fontSize: 13, lineHeight: 1, flexShrink: 0, marginLeft: 'auto' }}>+</span>
                   </div>
                 )
               })

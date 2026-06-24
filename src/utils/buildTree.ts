@@ -117,6 +117,7 @@ export function buildFlowElements(
   recipes: Recipe[],
   collapsedIds: Set<string>,
   onToggleCollapse: (recipeId: string) => void,
+  onAddItem: (itemId: string) => void,
 ): { nodes: Node<FactorioNodeData>[]; edges: Edge[] } {
   uidCounter = 0
   const root = buildTreeNode(rootId, quantity, 0, recipes, collapsedIds, onToggleCollapse)
@@ -146,6 +147,7 @@ export function buildFlowElements(
         resultAmount: node.resultAmount,
         allIngredients: node.allIngredients,
         onToggleCollapse,
+        onAddItem,
       },
     })
 

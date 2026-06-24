@@ -262,6 +262,11 @@ export default function App() {
     setActiveItemIds(prev => prev.filter((_, i) => i !== treeIndex))
   }, [])
 
+  // Add item to canvas without opening/closing modal (used from usage popup)
+  const addItemToCanvas = useCallback((itemId: string) => {
+    setActiveItemIds(prev => prev.includes(itemId) ? prev : [...prev, itemId])
+  }, [])
+
   // Replace a specific tree (double-click node)
   function replaceItem(treeIndex: number, newItemId: string) {
     setActiveItemIds(prev => {
@@ -285,7 +290,7 @@ export default function App() {
       const onToggle = (recipeId: string) => toggleCollapse(itemId, recipeId)
 
       const { nodes: tNodes, edges: tEdges } = buildFlowElements(
-        itemId, quantity, recipes, collapsed, onToggle,
+        itemId, quantity, recipes, collapsed, onToggle, addItemToCanvas,
       )
 
       const prefix = `t${i}__`
@@ -355,7 +360,7 @@ export default function App() {
     }
 
     return { nodes: allNodes, edges: allEdges }
-  }, [activeItemIds, quantity, collapsedMap, toggleCollapse, removeItem])
+  }, [activeItemIds, quantity, collapsedMap, toggleCollapse, removeItem, addItemToCanvas])
 
   // Aggregate raw materials across all active trees
   const rawMaterials = useMemo(() => {
