@@ -12,8 +12,9 @@ export interface Blueprint {
   name: string
   description: string | null
   author: string
-  items: string[]
-  quantity: number
+  blueprint_string: string
+  item_ids: string[]
   upvotes: number
+  downloads: number
   created_at: string
 }

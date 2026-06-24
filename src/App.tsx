@@ -268,12 +268,6 @@ export default function App() {
     setActiveItemIds(prev => prev.includes(itemId) ? prev : [...prev, itemId])
   }, [])
 
-  // Load a community blueprint (replaces canvas)
-  const loadBlueprint = useCallback((items: string[], qty: number) => {
-    setActiveItemIds(items.filter(validItemId))
-    setQuantity(qty)
-  }, [])
-
   // Replace a specific tree (double-click node)
   function replaceItem(treeIndex: number, newItemId: string) {
     setActiveItemIds(prev => {
@@ -505,11 +499,7 @@ export default function App() {
             exportName={exportName}
           />
           <RawMaterialsPanel items={rawMaterials} quantity={quantity} side="left" />
-          <BlueprintsPanel
-            activeItemIds={activeItemIds}
-            quantity={quantity}
-            onLoadBlueprint={loadBlueprint}
-          />
+          <BlueprintsPanel activeItemIds={activeItemIds} />
         </div>
 
         {/* ── modal ── */}
