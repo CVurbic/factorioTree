@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, type Blueprint } from '../lib/supabase'
 import { recipes } from '../data/recipes-generated'
+import { BlueprintPreview } from './BlueprintPreview'
 
 interface Props {
   activeItemIds: string[]
@@ -285,6 +286,10 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  <div style={{ marginBottom: 6 }}>
+                    <BlueprintPreview blueprintString={bp.blueprint_string} />
                   </div>
 
                   <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
