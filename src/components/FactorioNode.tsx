@@ -6,15 +6,15 @@ import { recipes } from '../data/recipes-generated'
 
 type FactorioNodeType = Node<FactorioNodeData, 'factorioNode'>
 
-const GROUP_COLORS: Record<string, { border: string; bg: string; raw: string }> = {
-  'logistics':             { border: '#3b82f6', bg: '#141b2d', raw: '#1a2235' },
-  'production':            { border: '#f97316', bg: '#1f170e', raw: '#261c10' },
-  'intermediate-products': { border: '#94a3b8', bg: '#1c1f26', raw: '#22252d' },
-  'space':                 { border: '#a855f7', bg: '#1a1228', raw: '#201630' },
-  'combat':                { border: '#ef4444', bg: '#1f1212', raw: '#261616' },
-  'fluids':                { border: '#22d3ee', bg: '#0e1c1f', raw: '#122226' },
-  'signals':               { border: '#22c55e', bg: '#0f1f15', raw: '#13261b' },
-  'other':                 { border: '#4b5563', bg: '#1c1f26', raw: '#22252d' },
+const GROUP_COLORS: Record<string, { accent: string }> = {
+  'logistics':             { accent: '#4a90d9' },
+  'production':            { accent: '#FF9F1C' },
+  'intermediate-products': { accent: '#A19E9A' },
+  'space':                 { accent: '#a855f7' },
+  'combat':                { accent: '#ef4444' },
+  'fluids':                { accent: '#22d3ee' },
+  'signals':               { accent: '#22c55e' },
+  'other':                 { accent: '#6b6060' },
 }
 
 function fmtAmount(n: number): string {
@@ -32,13 +32,11 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
   const [hovered, setHovered] = useState(false)
   const [showUsage, setShowUsage] = useState(false)
 
-  // All recipes that use this item as an ingredient
   const usedIn = useMemo(() =>
     recipes.filter(r => r.ingredients.some(ing => ing.id === data.recipeId)),
     [data.recipeId],
   )
 
-  // U key while hovered → toggle usage popup; Escape → close
   useEffect(() => {
     if (!hovered && !showUsage) return
     const handler = (e: KeyboardEvent) => {
@@ -50,10 +48,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
     return () => window.removeEventListener('keydown', handler)
   }, [hovered, showUsage])
 
-  const colors = GROUP_COLORS[data.group] ?? GROUP_COLORS['other']
-  const borderColor = data.isRaw ? colors.raw : colors.border
-  const bgColor = data.isRaw ? colors.bg : colors.bg
-
+  const { accent } = GROUP_COLORS[data.group] ?? GROUP_COLORS['other']
   const displayAmount = fmtAmount(data.amount)
   const displayTime = fmtTime(data.craftingTime)
 
@@ -65,16 +60,17 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
         position: 'relative',
         width: 160,
         height: 64,
-        backgroundColor: bgColor,
-        border: `1px solid ${borderColor}`,
-        borderRadius: 4,
+        background: data.isRaw ? '#222022' : '#272526',
+        border: `1px solid ${data.isRaw ? '#1a1819' : '#1e1c1e'}`,
+        borderTop: `2px solid ${data.isRaw ? '#333031' : accent + '99'}`,
+        borderRadius: 1,
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
-        paddingLeft: 8,
-        paddingRight: 8,
+        gap: 0,
         userSelect: 'none',
-        boxShadow: data.isRaw ? 'none' : `0 0 6px ${borderColor}22`,
+        boxShadow: data.isRaw
+          ? 'inset 1px 1px 0 rgba(255,255,255,0.04), inset -1px -1px 0 rgba(0,0,0,0.35)'
+          : 'inset 1px 1px 0 rgba(255,255,255,0.08), inset -1px -1px 0 rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.4)',
         opacity: data.isRaw ? 0.85 : 1,
         cursor: 'default',
       }}
@@ -100,9 +96,9 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
             width: 14,
             height: 14,
             borderRadius: '50%',
-            background: data.isCollapsed ? borderColor : '#21262d',
-            border: `1px solid ${borderColor}`,
-            color: data.isCollapsed ? '#fff' : borderColor,
+            background: data.isCollapsed ? accent : '#1a1919',
+            border: `1px solid ${accent}`,
+            color: data.isCollapsed ? '#0d0c0d' : accent,
             fontSize: 10,
             fontWeight: 700,
             lineHeight: 1,
@@ -118,79 +114,85 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
         </button>
       )}
 
-      {/* icon */}
+      {/* icon well — recessed */}
       <div style={{
-        width: 36,
-        height: 36,
+        width: 48,
+        height: 64,
         flexShrink: 0,
-        borderRadius: 3,
-        overflow: 'hidden',
-        background: '#0d1117',
-        border: `1px solid ${borderColor}44`,
+        background: '#1b1b1b',
+        borderRight: '1px solid #111',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.6), inset -1px -1px 0 rgba(255,255,255,0.04)',
       }}>
         {!imgFailed ? (
-          <div style={{ width: 36, height: 36, overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+          <div style={{ width: 36, height: 36, overflow: 'hidden', position: 'relative' }}>
             <img
               src={`/icons/${data.recipeId}.png`}
               alt={data.name}
               style={{ height: 36, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
               onError={() => setImgFailed(true)}
             />
-            {/* fluid overlay */}
             {data.isFluid && (
               <div style={{
                 position: 'absolute', bottom: 0, right: 0,
-                width: 10, height: 10,
+                width: 8, height: 8,
                 background: '#22d3ee',
                 borderRadius: '50% 0 0 0',
-                opacity: 0.8,
+                opacity: 0.9,
               }} />
             )}
           </div>
         ) : (
-          <span style={{ fontSize: 9, color: '#6b7280', textAlign: 'center', lineHeight: 1.2 }}>
+          <span style={{ fontSize: 9, color: '#6b6060', textAlign: 'center', lineHeight: 1.2, fontFamily: 'monospace' }}>
             {data.recipeId.slice(0, 3).toUpperCase()}
           </span>
         )}
       </div>
 
-      {/* name */}
-      <span style={{
-        fontSize: 11,
-        lineHeight: 1.25,
-        fontWeight: 500,
-        flex: 1,
-        minWidth: 0,
-        overflow: 'hidden',
-        display: '-webkit-box',
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: 'vertical',
-        color: data.isRaw ? '#9ca3af' : '#e2e8f0',
-      }}>
-        {data.name}
-      </span>
+      {/* content area */}
+      <div style={{ flex: 1, padding: '6px 8px', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {/* item name */}
+        <span style={{
+          fontSize: 11,
+          lineHeight: 1.25,
+          fontWeight: 600,
+          fontFamily: "'Titillium Web', sans-serif",
+          color: data.isRaw ? '#A19E9A' : '#FFE6C0',
+          overflow: 'hidden',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+        }}>
+          {data.name}
+        </span>
 
-      {/* bottom badges */}
+        {/* crafting time */}
+        {!data.isRaw && (
+          <span style={{
+            fontSize: 9,
+            color: '#6b6060',
+            marginTop: 3,
+            fontFamily: 'monospace',
+          }}>
+            ⏱ {displayTime}
+          </span>
+        )}
+      </div>
+
+      {/* amount badge — top right */}
       <div style={{
-        position: 'absolute', bottom: 3, right: 5,
-        fontSize: 10, fontWeight: 700, lineHeight: 1,
-        color: data.amount > 1 ? '#f0a030' : '#6b7280',
+        position: 'absolute',
+        top: 3, right: 5,
+        fontSize: 10,
+        fontWeight: 700,
+        fontFamily: 'monospace',
+        color: data.amount > 1 ? '#FF9F1C' : '#6b6060',
+        lineHeight: 1,
       }}>
         ×{displayAmount}
       </div>
-
-      {!data.isRaw && (
-        <div style={{
-          position: 'absolute', bottom: 3, left: 8,
-          fontSize: 9, lineHeight: 1,
-          color: '#4b5563',
-        }}>
-          ⏱{displayTime}
-        </div>
-      )}
 
       {/* right source handle */}
       <Handle
@@ -200,38 +202,39 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
         style={{ background: 'transparent', border: 'none', right: -1 }}
       />
 
-      {/* hover tooltip (hidden while usage popup is open) */}
+      {/* hover tooltip */}
       {hovered && !showUsage && (
         <div style={{
           position: 'absolute',
-          left: 'calc(100% + 12px)',
+          left: 'calc(100% + 14px)',
           top: '50%',
           transform: 'translateY(-50%)',
-          background: '#1e222a',
-          border: `1px solid ${borderColor}`,
-          borderRadius: 6,
+          background: '#272526',
+          border: `1px solid ${accent}55`,
+          borderTop: `2px solid ${accent}`,
+          borderRadius: 2,
           padding: '10px 12px',
-          minWidth: 180,
-          maxWidth: 240,
+          minWidth: 185,
+          maxWidth: 245,
           zIndex: 9999,
           pointerEvents: 'none',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
+          boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.8)',
         }}>
-          <div style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
+          <div style={{ color: '#FFE6C0', fontWeight: 700, fontSize: 13, marginBottom: 6, fontFamily: "'Titillium Web', sans-serif", letterSpacing: '0.04em' }}>
             {data.name}
           </div>
-          <div style={{ color: '#6b7280', fontSize: 11, marginBottom: 8, display: 'flex', gap: 12 }}>
+          <div style={{ color: '#A19E9A', fontSize: 11, marginBottom: 8, display: 'flex', gap: 12, fontFamily: 'monospace' }}>
             <span>⏱ {displayTime}/craft</span>
             <span>→ ×{data.resultAmount}</span>
           </div>
           {data.allIngredients.length > 0 && (
             <>
-              <div style={{ color: '#4b5563', fontSize: 10, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div style={{ color: '#6b6060', fontSize: 10, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'Titillium Web', sans-serif" }}>
                 Ingredients
               </div>
               {data.allIngredients.map(ing => (
                 <div key={ing.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                  <div style={{ width: 18, height: 18, overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ width: 18, height: 18, overflow: 'hidden', flexShrink: 0, background: '#1b1b1b', borderRadius: 1 }}>
                     <img
                       src={`/icons/${ing.id}.png`}
                       alt=""
@@ -239,7 +242,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
                       onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }}
                     />
                   </div>
-                  <span style={{ color: '#9ca3af', fontSize: 11 }}>
+                  <span style={{ color: '#A19E9A', fontSize: 11, fontFamily: 'monospace' }}>
                     ×{ing.amount} {ing.name}
                   </span>
                 </div>
@@ -247,17 +250,17 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
             </>
           )}
           {data.isCollapsed && (
-            <div style={{ marginTop: 8, color: '#f0a030', fontSize: 10 }}>
+            <div style={{ marginTop: 8, color: '#FF9F1C', fontSize: 10, fontFamily: 'monospace' }}>
               Subtree collapsed — click + to expand
             </div>
           )}
           {!data.isRaw && !data.isCollapsed && (
-            <div style={{ marginTop: 8, color: '#4b5563', fontSize: 10 }}>
+            <div style={{ marginTop: 8, color: '#6b6060', fontSize: 10, fontFamily: 'monospace' }}>
               Double-click to set as root
             </div>
           )}
           {usedIn.length > 0 && (
-            <div style={{ marginTop: 8, color: '#c9a84c', fontSize: 10 }}>
+            <div style={{ marginTop: 6, color: '#c9a84c', fontSize: 10, fontFamily: 'monospace' }}>
               Press U — used in {usedIn.length} recipe{usedIn.length !== 1 ? 's' : ''}
             </div>
           )}
@@ -270,49 +273,46 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
           onMouseDown={e => e.stopPropagation()}
           style={{
             position: 'absolute',
-            left: 'calc(100% + 12px)',
+            left: 'calc(100% + 14px)',
             top: '50%',
             transform: 'translateY(-50%)',
-            background: '#1e222a',
-            border: `1px solid ${borderColor}`,
-            borderRadius: 6,
+            background: '#272526',
+            border: `1px solid ${accent}55`,
+            borderTop: `2px solid ${accent}`,
+            borderRadius: 2,
             width: 280,
             maxHeight: 360,
             zIndex: 9999,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.9)',
+            boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.9)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
           }}
         >
-          {/* header */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '8px 10px 6px',
-            borderBottom: '1px solid #2a2e3d',
+            borderBottom: '1px solid #1a1919',
             flexShrink: 0,
+            background: '#222022',
           }}>
             <div>
-              <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 12 }}>Used in</span>
-              <span style={{ color: '#c9a84c', fontSize: 12, marginLeft: 5, fontFamily: 'monospace' }}>
+              <span style={{ color: '#FFE6C0', fontWeight: 700, fontSize: 12, fontFamily: "'Titillium Web', sans-serif" }}>Used in</span>
+              <span style={{ color: '#FF9F1C', fontSize: 12, marginLeft: 5, fontFamily: 'monospace' }}>
                 {usedIn.length} recipe{usedIn.length !== 1 ? 's' : ''}
               </span>
             </div>
             <button
               onClick={e => { e.stopPropagation(); setShowUsage(false) }}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: '#4b5563', fontSize: 16, lineHeight: 1, padding: '0 2px',
-              }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b6060', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
               onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#4b5563')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#6b6060')}
             >×</button>
           </div>
 
-          {/* list */}
-          <div style={{ overflowY: 'auto', padding: '6px 8px', flex: 1 }}>
+          <div style={{ overflowY: 'auto', padding: '6px 8px', flex: 1, background: '#1d1c1d' }}>
             {usedIn.length === 0 ? (
-              <span style={{ color: '#4b5563', fontSize: 12 }}>Not used in any recipe.</span>
+              <span style={{ color: '#6b6060', fontSize: 12, fontFamily: 'monospace' }}>Not used in any recipe.</span>
             ) : (
               usedIn.map(r => {
                 const ingAmt = r.ingredients.find(ing => ing.id === data.recipeId)?.amount ?? 1
@@ -322,48 +322,40 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
                     onClick={() => { data.onAddItem(r.id); setShowUsage(false) }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '4px 4px',
-                      borderRadius: 3,
-                      marginBottom: 2,
-                      cursor: 'pointer',
+                      padding: '5px 4px', borderRadius: 1, marginBottom: 2, cursor: 'pointer',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#262a34')}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#272526')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    {/* result icon */}
-                    <div style={{ width: 28, height: 28, overflow: 'hidden', flexShrink: 0, background: '#0d1117', borderRadius: 3, border: '1px solid #2a2e3d' }}>
+                    <div style={{ width: 28, height: 28, overflow: 'hidden', flexShrink: 0, background: '#1b1b1b', border: '1px solid #111' }}>
                       <img
-                        src={`/icons/${r.id}.png`}
-                        alt=""
+                        src={`/icons/${r.id}.png`} alt=""
                         style={{ height: 28, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
                         onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }}
                       />
                     </div>
-                    {/* result name */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ color: '#c9d1d9', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ color: '#FFE6C0', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>
                         {r.name}
                       </div>
-                      <div style={{ color: '#4b5563', fontSize: 10, marginTop: 1 }}>
+                      <div style={{ color: '#6b6060', fontSize: 10, marginTop: 1, fontFamily: 'monospace' }}>
                         ×{ingAmt} needed · ⏱{fmtTime(r.craftingTime)}
                       </div>
                     </div>
-                    {/* result amount */}
                     {r.resultAmount > 1 && (
-                      <span style={{ color: '#c9a84c', fontSize: 10, fontFamily: 'monospace', flexShrink: 0 }}>
+                      <span style={{ color: '#FF9F1C', fontSize: 10, fontFamily: 'monospace', flexShrink: 0 }}>
                         →×{r.resultAmount}
                       </span>
                     )}
-                    {/* add hint */}
-                    <span style={{ color: '#4b5563', fontSize: 13, lineHeight: 1, flexShrink: 0, marginLeft: 'auto' }}>+</span>
+                    <span style={{ color: '#6b6060', fontSize: 13, flexShrink: 0, marginLeft: 'auto' }}>+</span>
                   </div>
                 )
               })
             )}
           </div>
 
-          <div style={{ padding: '4px 10px 6px', borderTop: '1px solid #1a1d24', flexShrink: 0 }}>
-            <span style={{ color: '#4b5563', fontSize: 10 }}>Press U or Esc to close</span>
+          <div style={{ padding: '5px 10px', borderTop: '1px solid #1a1919', flexShrink: 0, background: '#222022' }}>
+            <span style={{ color: '#6b6060', fontSize: 10, fontFamily: 'monospace' }}>Press U or Esc to close</span>
           </div>
         </div>
       )}

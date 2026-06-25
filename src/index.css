@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+:root {
+  --canvas-bg: #242324;
+  --panel-bg: #313031;
+  --panel-inset: #1b1b1b;
+  --accent-gold: #FF9F1C;
+  --text-prime: #FFE6C0;
+  --text-dim: #A19E9A;
+  --border-dark: #111111;
+  --shadow-outset: inset 1px 1px 0px rgba(255,255,255,0.10), inset -1px -1px 0px rgba(0,0,0,0.40), 0px 3px 8px rgba(0,0,0,0.5);
+  --shadow-inset: inset -1px -1px 0px rgba(255,255,255,0.04), inset 2px 2px 5px rgba(0,0,0,0.6);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -7,32 +19,40 @@
 }
 
 body {
-  background: #0d1117;
+  background: var(--canvas-bg);
+  font-family: 'Titillium Web', 'Inter', sans-serif;
 }
 
+/* ── Conveyor belt animation ── */
+@keyframes conveyorFlow {
+  from { stroke-dashoffset: 20; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* ── React Flow canvas ── */
 .react-flow__background {
-  background-color: #0d1117 !important;
+  background-color: var(--canvas-bg) !important;
 }
 
 .react-flow__controls {
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-dark);
+  border-radius: 2px;
   overflow: hidden;
-  box-shadow: none;
+  box-shadow: var(--shadow-outset);
 }
 
 .react-flow__controls-button {
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
-  fill: #8b949e;
+  background: var(--panel-bg);
+  border-bottom: 1px solid #1a1919;
+  fill: var(--text-dim);
   width: 28px;
   height: 28px;
 }
 
 .react-flow__controls-button:hover {
-  background: #21262d;
-  fill: #f0f6fc;
+  background: #3a3839;
+  fill: var(--text-prime);
 }
 
 .react-flow__controls-button svg {
@@ -40,7 +60,7 @@ body {
 }
 
 .react-flow__edge-path {
-  stroke-linecap: square;
+  stroke-linecap: butt;
 }
 
 .react-flow__handle {
@@ -48,13 +68,20 @@ body {
   pointer-events: none;
 }
 
+.react-flow__minimap {
+  background: var(--panel-bg) !important;
+  border: 1px solid var(--border-dark) !important;
+  border-radius: 2px !important;
+  box-shadow: var(--shadow-outset) !important;
+}
+
 .react-flow__minimap-mask {
-  fill: rgba(0,0,0,0.65);
+  fill: rgba(0,0,0,0.7);
 }
 
 .react-flow__minimap-node {
-  rx: 2;
-  ry: 2;
+  rx: 1;
+  ry: 1;
 }
 
 input[type=number]::-webkit-inner-spin-button,

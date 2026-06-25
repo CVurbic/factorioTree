@@ -159,8 +159,7 @@ export function buildFlowElements(
         target: node.uid,
         sourceHandle: 'right',
         targetHandle: 'left',
-        type: 'step',
-        style: { stroke: '#4b5563', strokeWidth: 2 },
+        type: 'conveyor',
       })
     })
   }

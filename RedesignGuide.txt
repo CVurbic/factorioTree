@@ -1,0 +1,296 @@
+Architectural Specification: Redesigning System Planners for Modern Skeuomorphic Industrial EnvironmentsDesign System Foundation: Palette, Skeuomorphism, and HierarchyTraditional web applications prioritize flat visual patterns, minimalist white spaces, and structural simplicity to minimize cognitive strain during brief user sessions. However, system-oriented calculators and interactive planning tools require a high-density, system-intensive layout. When users manage complex production pipelines, flat designs can hide the logical flow and hierarchy of the system. A modern, skeuomorphic design system solves this by transforming abstract digital interfaces into tactile, structured control surfaces that reflect the weight, texture, and industrial layout of physical machinery.An effective skeuomorphic design system relies on a dark, high-contrast palette. The interface uses deep charcoal and warm slate hues to prevent eye strain during long planning sessions. Accent colors are applied selectively to draw attention to active components, operational bottlenecks, or specific resource streams. Rather than choosing arbitrary decorative accents, this design system uses color as a critical tool for displaying real-time data, indicating machine statuses, and categorizing resource tiers.Primary Surface and Text PaletteThe primary interface surfaces are constructed using deep, low-vibrancy gray tones that form a neutral backdrop, allowing key indicators to stand out clearly. Text variables are configured with a slight warm tint to maintain readability and contrast against the dark background panels.UI Variable NameTarget Hexadecimal ColorIntent and ApplicationUI Rendering Location--color-canvas-bg#242324 Primary workspace background, reducing visual noiseReact Flow interactive canvas [Image 1]--color-panel-bg#313031 Mid-tier physical surface containerSidebars, overlay panels, toolbar frames --color-panel-inset#1b1b1bDark recessed background plate Input forms, item search grids, active lists [Image 2]--color-text-prime#FFE6C0 Warm cream, high-contrast primary textHeaders, item counts, modal titles --color-text-dim#A19E9ANeutral, medium-contrast secondary textUnits ($\mathrm{u}/\mathrm{s}$), file paths, secondary metadata --color-accent-gold#FF9F1C Saturated orange, indicating focusActive tab borders, selected node highlights Semantic State and Quality Tier Color SystemsResource routing, throughput capacity, and system errors are communicated across the planner canvas using standard industrial status colors. Production elements are further structured using an established tiered color hierarchy, making it easy to identify upgrade paths and upcycling sequences at a glance.Semantic VariableQuality / Status StateColor Code (Hex)Application in Planner Canvas--color-tier-normalNormal / Base#A19E9AStandard recipes, raw materials, gray belts --color-tier-uncommonUncommon Tier#72C42B Level 1 modules, basic logistics, green wire paths --color-tier-rareRare Tier#44B0EE Level 2 modules, advanced machines, blue belts --color-tier-epicEpic Tier#9E3DF5 Level 3 modules, chemical setups, purple signals --color-tier-legendLegendary Tier#E1A221 Maximum tier components, optimized endpoints --color-state-alertCritical Error / Block#FF0000 Starved recipes, capacity bottlenecks, offline status--color-state-optimalOptimal Performance#00FF00 Saturated conveyor lines, balanced production rates--color-state-neutralSignal / Unset System#7FFFC8 System pipelines, circuit signal lines Structural Layout Redesign: Titlebars, Frames, and Nested ElementsModern consumer interfaces rely on subtle, blurry shadows to separate overlapping panels. In contrast, a skeuomorphic industrial aesthetic uses physical nesting, tactile frames, and clearly defined edge bevels. This structural hierarchy mimics physical control consoles, where panels are mounted inside heavy outer chassis. The redesign replaces the flat layouts seen in standard planners with a clear mechanical structure, categorizing all user-facing panels into standard, dialog, and compact windows.Standard Structural Window ArchitectureStandard windows are manual panels that can be moved, resized, or toggled on the canvas, such as the Crafting Tree. These windows are built with four primary design layers :Outer Structural Chassis: Constructed using a dark outer edge (border: 1px solid #151515) and a lighter top-left interior edge to create a raised 3D plate effect.Titlebar and Grab Surface: Spans the top of the container, housing the main window title. It uses a stretchable header style (height: 24px) with a built-in drag target to allow smooth movement across the canvas.Tactile Header Buttons: Square, tactile buttons (26px x 26px with 3px inner padding) located in the top-right corner. These buttons feature a neutral light-gray tint (RGB 227, 227, 227) that shifts to dark gray (RGB 29, 29, 29) when hovered or active.Nested Content Area: Uses a padded container (inside_shallow_frame_with_padding) that applies a standard 12px inner margin. If the panel contains scrollable lists, the padding is removed (inside_shallow_frame) to let the scrollbars sit flush against the outer border.+-------------------------------------------------------------+
+| [Icon] Assembling Unit III (Active)                     [X] | <-- Titlebar & Drag Handle 
++-------------------------------------------------------------+
+|  +-------------------------------------------------------+  |
+|  | Subheader Tool Toolbar: Copy / Paste / Reset Commands  |  | <-- subheader_frame Toolbar 
+|  +-------------------------------------------------------+  |
+|  |                                                       |  |
+|  |  +-------------------------------------------------+  |  |
+|  |  | Recessed Panel Container                        |  |  | <-- inside_shallow_frame_with_padding 
+|  |  |                                                 |  |  |
+|  |  +-------------------------------------------------+  |  |
+|  +-------------------------------------------------------+  |
++-------------------------------------------------------------+
+Implementing Tactile Depth in CSSRather than loading large image assets that can slow down performance, these 3D bevels are rendered using layered CSS custom properties. This ensures the interface scales smoothly on high-DPI displays without stretching.CSS/* Custom utility classes defining skeuomorphic panels and highlights */
+
+.chassis-raised-plate {
+  background-color: var(--color-panel-bg);
+  border: 1px solid #111111;
+  /* Light source from top-left: casts white highlight inside, dark shadow outside */
+  box-shadow: 
+    inset 1px 1px 0px 0px rgba(255, 255, 255, 0.12),
+    inset -1px -1px 0px 0px rgba(0, 0, 0, 0.35),
+    0px 4px 10px -2px rgba(0, 0, 0, 0.5);
+}
+
+.chassis-recessed-well {
+  background-color: var(--color-panel-inset);
+  border: 1px solid #151515;
+  /* Inset shadows create a physical "stamped metal" depth effect */
+  box-shadow: 
+    inset -1px -1px 0px 0px rgba(255, 255, 255, 0.04),
+    inset 2px 2px 5px 0px rgba(0, 0, 0, 0.6);
+}
+
+.beveled-industrial-edge {
+  /* Dynamic clip-path masking corners to a sharp 45-degree angle */
+  clip-path: polygon(
+    4px 0%, calc(100% - 4px) 0%, 
+    100% 4px, 100% calc(100% - 4px), 
+    calc(100% - 4px) 100%, 4px 100%, 
+    0% calc(100% - 4px), 0% 4px
+  );
+}
+Interactive Nodes and Conveyor Flow Systems on the Flow CanvasThe interactive canvas is the core of the planning tool, replacing the flat layouts seen in standard calculators with a dynamic, physical representation of a factory floor. Nodes represent physical assembly machines, and connection lines represent animated conveyor belts. This spatial organization helps users balance production rates and resolve layout bottlenecks. Node 1: Iron Plate (Output) ======== >>> ======== >>> ======== Node 2: Gear (Input)
+                                       ^           ^
+                               Animated Chevrons Show Flow Speed 
+Mathematical Throughput and Module ModelingTo calculate precise production rates, the node calculation engine model must account for machine crafting speeds, productivity modules, and quality multipliers. Throughput formulas are calculated using standard notation, ensuring units ($\mathrm{u}/\mathrm{s}$) are kept distinct from scalar quantities :$$\dot{m}_{\mathrm{output}} = \dot{m}_{\mathrm{base}} \cdot c_{\mathrm{speed}} \cdot \left( 1 + \sum \mu_{\mathrm{prod}} \right) \cdot \left( 1 + \sum \mu_{\mathrm{speed}} \right) \, \mathrm{u}/\mathrm{s}$$Where $\dot{m}_{\mathrm{output}}$ is the final calculated item throughput , $\dot{m}_{\mathrm{base}}$ is the base recipe output rate, $c_{\mathrm{speed}}$ is the core machine crafting multiplier, $\sum \mu_{\mathrm{prod}}$ is the sum of active productivity modules , and $\sum \mu_{\mathrm{speed}}$ represents active speed module effects.Re-Engineering Custom React Flow NodesCustom nodes are styled as compact control panels. They display active utilization rates using progress bars that feature a bright-green indicator sliding across a recessed, dark slot. Integrated module slots show active productivity or speed multipliers :Tactile Node Header: Features a solid subheader bar (subheader_frame) displaying the machine's primary function icon and its current efficiency percentage.Port Handles (Handles): Replaced with metallic circular sockets. These handles turn bright yellow on hover to indicate valid connection points.Conveyor Belt Edges: Custom React Flow edges are built as dual-layered SVG paths. A thick, dark-slate background path represents the physical belt, while an animated dashed layer on top represents item flow. The speed of the chevron animation scales dynamically based on calculated throughput. If a line bottlenecks or runs out of resources, the chevron animation stops, providing instant visual feedback on the state of the factory.Production-Ready Custom Edge ImplementationJavaScriptimport React, { useMemo } from 'react';
+import { getBezierPath } from 'reactflow';
+
+// Custom conveyor edge displaying dynamic speed animations based on throughput
+export const ConveyorBeltEdge = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style = {},
+  data = {},
+}) => {
+  const [edgePath] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  // Calculate dynamic flow rate duration
+  // If throughput is zero, animation is disabled
+  const movementDuration = useMemo(() => {
+    const rate = data.throughput || 0;
+    if (rate <= 0) return 0;
+    // Maps the flow rate to animation speed: higher rates animate faster
+    return Math.max(0.8, 12 - (rate / 5)); 
+  }, [data.throughput]);
+
+  return (
+    <>
+      {/* Background track: represents the physical conveyor belt */}
+      <path
+        id={`${id}-chassis`}
+        d={edgePath}
+        fill="none"
+        stroke="#1a1a1a"
+        strokeWidth={10}
+        className="react-flow__edge-path"
+      />
+      
+      {/* Midground color track: representing the material or fluid type */}
+      <path
+        id={`${id}-well`}
+        d={edgePath}
+        fill="none"
+        stroke={data.resourceColor || '#5f668c'}
+        strokeWidth={6}
+        opacity={0.85}
+      />
+
+      {/* Foreground flow animation layer: represents moving materials */}
+      {movementDuration > 0 && (
+        <path
+          id={`${id}-flow`}
+          d={edgePath}
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth={4}
+          strokeDasharray="6, 14"
+          style={{
+            animation: `conveyorFlow ${movementDuration}s linear infinite`,
+           ...style,
+          }}
+          opacity={0.7}
+        />
+      )}
+    </>
+  );
+};
+Re-architecting Peripheral Overlays: Sidebar Widgets and Item Selector ModalsThe secondary elements in standard planning tools are often rendered as simple floating sidebars or flat overlays [Image 1, Image 2]. A skeuomorphic industrial design reimagines these panels as functional hardware modules. These components are split into a left Raw Materials panel, a right Blueprints control panel [Image 1], and a central Item Selection modal [Image 2].+------------------------------------------------------------------------+
+|  Add Item to Canvas [X] | <-- Dialog Header
++------------------------------------------------------------------------+
+|  [Logistics]  *[Production]*  [Intermediates]  [Combat]      | <-- Category Selection Tabs
++------------------------------------------------------------------------+
+|  +------------------------------------------------------------------+  |
+|  |  +------+  +------+  +------+  +------+  +------+  +------+      |  |
+|  |  | [X]  |  | [X]  |  | [X]  |  | [X]  |  | [X]  |  | [X]  |      |  | <-- Recessed Stamped Tile Grid 
+|  |  | (5)  |  | (1)  |  | (15) |  | (2)  |  | (20) |  | (1)  |      |  |
+|  |  +------+  +------+  +------+  +------+  +------+  +------+      |  |
+|  +------------------------------------------------------------------+  |
++------------------------------------------------------------------------+
+Left Sidebar: Raw Materials InterfaceThe Raw Materials list (showing base resources like Copper Ore or Asteroid Chunks) is housed in a standard sidebar container. It features solid, dark backgrounds that give it a physical presence alongside the main canvas :Recessed Panel Cells: Individual material readouts are styled as recessed slots.Integrated Item Badges: Each resource shows its high-resolution game sprite. Quantitative resource counts are overlaid in a small, bottom-right yellow badge using a monospaced font to prevent text wrapping (DejaVu Sans Mono).Right Sidebar: Blueprint Controller PanelThe Blueprint sharing panel uses a tabbed structure with two primary tabs: "BROWSE" and "SHARE" [Image 1]. It is built using the Standard Window specifications :Outset Form Fields: Text fields (such as Blueprint Name, Author, and Description) are styled as inset metal boxes.Industrial Action Buttons: The "Share Blueprint" button features angled corners (clip-path) and standard gray-to-orange hover transitions. Pressing E while editing triggers the primary action button, allowing users to save and close the panel quickly.Central Popover: Item Selector Dialog ModalClicking the "+ Add item" button opens a standard dialog window. This component replaces the flat overlay with a detailed, structured control board :Dialog Title and Search Header: Features a stretchable header bar with a nested, dark search box. This input field automatically focuses when the modal opens, letting users type and search instantly.Skeuomorphic Selection Tabs: Tabs represent the core item categories (Logistics, Production, Intermediate Products, Combat, Fluids, Signals). These tabs are modeled after physical toggle buttons; active categories depress into the panel and highlight with an orange accent border.Structured Selection Grid: Items are displayed in a clean grid using a dark, recessed panel background (inside_shallow_frame). Each item slot is styled as a physical button with a light-gray border that turns bright orange when hovered.Keyboard Ergonomics, Dynamic Scaling, and Responsive IntegrationA high-density UI can become difficult to navigate if it relies entirely on precise mouse movements. To ensure fast, efficient editing, this planning tool implements keyboard-driven actions and automatic, multi-resolution scaling.Tactile Keyboard-Driven ActionsTo speed up layout planning, keyboard controls are integrated directly into the workspace interactions :The Clear Command (Q Key): Pressing Q deselects active nodes, clears selected objects from the cursor, and exits open overlays, returning the canvas to a clean state.The Toolbar Toggle (E Key): The E key acts as a universal shortcut to open or close secondary sidebars and overlays. If a configuration form is open, pressing E saves the changes and closes the panel.Workspace Search (Ctrl + F): Instantly focuses the main recipe search field, letting users search and place components without using the mouse.Settings Transfer (Shift + Right/Left Click): Hovering over a node and pressing Shift + Right Click copies its configuration (installed modules and output goals). Pressing Shift + Left Click on another node pastes these settings, making it easy to configure large assembly lines quickly.Multi-Resolution Interface ScalingDetailed systems interfaces can often clip or render off-center on non-standard displays or when browser zoom is adjusted. This issue is resolved using a responsive layout scaling multiplier :$$\omega_{\mathrm{layout}} = \max\left(0.5, \, \min\left(2.5, \, \frac{\mathrm{Width}_{\mathrm{browser}}}{1920} \cdot \mathrm{Ratio}_{\mathrm{pixel}}\right)\right)$$This scale multiplier ($\omega_{\mathrm{layout}}$) dynamically adjusts font sizes, border thicknesses, grid paddings, and React Flow node margins. This ensures the interface scale adapts smoothly on both 1080p and 4K displays.Tailwind CSS v4 Theme Integration CodeThe following block is added directly to your main stylesheet (src/globals.css) to register the custom colors, fonts, and shadow classes into the Tailwind CSS v4 design engine :CSS@import "tailwindcss";
+
+@theme {
+  /* High-Contrast Skeuomorphic Typefaces */
+  --font-display: "Full Automation", "Titillium Web", sans-serif [32, 38];
+  --font-sans: "Titillium Web", "Inter", sans-serif [32, 39];
+  --font-mono: "DejaVu Sans Mono", monospace [32];
+
+  /* Core Industrial Palette */
+  --color-canvas-bg: #242324 [6];
+  --color-panel-bg: #313031 [6];
+  --color-panel-inset: #1b1b1b;
+  --color-accent-gold: #ff9f1c [6];
+  --color-text-beige: #ffe6c0 [6];
+  
+  /* Semantic Quality Tiers */
+  --color-tier-uncommon: #72c42b [14];
+  --color-tier-rare: #44b0ee [14];
+  --color-tier-epic: #9e3df5 [14];
+  --color-tier-legend: #e1a221 [14];
+
+  /* Skeuomorphic Shadow Properties */
+  --shadow-industrial-outset: inset 1px 1px 0px 0px rgba(255, 255, 255, 0.15), inset -1px -1px 0px 0px rgba(0, 0, 0, 0.4), 0px 4px 6px -1px rgba(0, 0, 0, 0.3) [5, 10];
+  --shadow-industrial-inset: inset -1px -1px 0px 0px rgba(255, 255, 255, 0.05), inset 2px 2px 4px 0px rgba(0, 0, 0, 0.6) [5, 10];
+}
+
+/* Conveyor flow animation keyframes */
+@keyframes conveyorFlow {
+  from {
+    stroke-dashoffset: 20;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+Modular Node Component ImplementationThis custom node React component shows how to build an Assembling Machine node with beveled styling, tabbed subheaders, and tactile recessed panels using Tailwind v4 :JavaScriptimport React, { useState } from 'react';
+import { Handle, Position } from 'reactflow';
+
+export const AssemblingUnitNode = ({ data, selected }) => {
+  const = useState('production'); // production | modules | details 
+
+  return (
+    <div 
+      className={`w-72 bg-panel-bg text-text-beige border border-[#1b1b1b] rounded-sm shadow-industrial-outset transition-all duration-150
+        ${selected? 'outline-2 outline-accent-gold shadow-[0_0_10px_rgba(255,159,28,0.3)]' : ''}
+      `}
+    >
+      {/* Node Header */}
+      <div className="flex items-center justify-between px-3 py-2 bg-[#2c2b2c] border-b border-[#1b1b1b] drag-handle">
+        <div className="flex items-center gap-2">
+          {data.icon && <img src={data.icon} alt="" className="w-5 h-5 object-contain" />}
+          <span className="font-sans font-bold text-xs tracking-wide uppercase">
+            {data.label || 'Assembling Unit III'} 
+          </span>
+        </div>
+        <span className="font-mono text-[10px] bg-canvas-bg px-1.5 py-0.5 rounded text-accent-gold border border-[#151515]">
+          {(data.efficiency || 100).toFixed(0)}%
+        </span>
+      </div>
+
+      {/* Subheader Toolbar Navigation  */}
+      <div className="flex bg-[#272627] border-b border-[#1b1b1b] text-[10px]">
+        {['production', 'modules', 'details'].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-1.5 px-2 font-sans font-bold uppercase border-r border-[#1b1b1b] hover:bg-[#383738] transition-colors cursor-pointer
+              ${activeTab === tab? 'bg-panel-bg text-accent-gold border-t-2 border-t-accent-gold' : 'text-gray-400'}
+            `}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content Panes  */}
+      <div className="p-3">
+        {activeTab === 'production' && (
+          <div className="space-y-2">
+            {/* Input Ports with Recessed Well Layout [4, 10] */}
+            <div className="p-2 bg-canvas-bg border border-[#1b1b1b] shadow-industrial-inset rounded-sm">
+              <span className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Inputs</span>
+              <div className="space-y-1">
+                {(data.inputs ||).map((input, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-xs font-mono">
+                    <span className="text-gray-400">{input.name}</span>
+                    <span className="font-bold">{input.rate.toFixed(1)}/s</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Output Ports with Recessed Well Layout [4, 10] */}
+            <div className="p-2 bg-canvas-bg border border-[#1b1b1b] shadow-industrial-inset rounded-sm">
+              <span className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Outputs</span>
+              <div className="space-y-1">
+                {(data.outputs ||).map((output, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-xs font-mono">
+                    <span className="text-accent-gold">{output.name}</span>
+                    <span className="font-bold">{output.rate.toFixed(1)}/s</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'modules' && (
+          <div className="p-2 bg-canvas-bg border border-[#1b1b1b] shadow-industrial-inset rounded-sm min-h-[74px] flex items-center justify-around">
+            {/* Custom Module Slots  */}
+            {[...Array(4)].map((_, i) => {
+              const module = data.modules?.[i];
+              return (
+                <div 
+                  key={i} 
+                  className={`w-11 h-11 border rounded flex items-center justify-center transition-all
+                    ${module? 'border-accent-gold bg-[#3d3323]' : 'border-dashed border-[#444] bg-[#222]'}
+                  `}
+                >
+                  {module? (
+                    <img src={module.icon} alt={module.name} className="w-9 h-9 object-contain" />
+                  ) : (
+                    <span className="text-[8px] text-[#444] font-bold">EMPTY</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === 'details' && (
+          <div className="p-2 bg-canvas-bg border border-[#1b1b1b] shadow-industrial-inset rounded-sm min-h-[74px] text-[11px] font-mono space-y-1 text-gray-400">
+            <div className="flex justify-between">
+              <span>Energy Draw:</span>
+              <span className="text-text-beige">{(data.powerDraw || 375).toFixed(0)} kW</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Base Craft Speed:</span>
+              <span className="text-text-beige">{(data.craftSpeed || 1.25).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Upcycle Quality:</span>
+              <span className="text-tier-uncommon font-bold">Uncommon (+10%)</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Connection Sockets (Ports aligned to node edges) */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="input-port"
+        className="!w-3!h-3!bg-[#151515]!border-2!border-[#4e4d4e] hover:!border-accent-gold transition-colors!rounded-full"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="output-port"
+        className="!w-3!h-3!bg-[#151515]!border-2!border-[#4e4d4e] hover:!border-accent-gold transition-colors!rounded-full"
+      />
+    </div>
+  );
+};

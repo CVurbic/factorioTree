@@ -12,6 +12,7 @@ import {
   useEdgesState,
   applyNodeChanges,
   type NodeTypes,
+  type EdgeTypes,
   type Node,
   type Edge,
   type NodeChange,
@@ -23,12 +24,14 @@ import { buildFlowElements, getRawMaterials } from './utils/buildTree'
 import type { FactorioNodeData } from './types'
 import { FactorioNode } from './components/FactorioNode'
 import { TreeFrame } from './components/TreeFrame'
+import { ConveyorEdge } from './components/ConveyorEdge'
 import { ItemPickerModal } from './components/ItemPickerModal'
 import { RawMaterialsPanel } from './components/RawMaterialsPanel'
 import { BlueprintsPanel } from './components/BlueprintsPanel'
 import { Legend } from './components/Legend'
 
 const nodeTypes: NodeTypes = { factorioNode: FactorioNode, treeFrame: TreeFrame }
+const edgeTypes: EdgeTypes = { conveyor: ConveyorEdge }
 const TREE_GAP = 380
 
 // ── storage helpers ───────────────────────────────────────────────────────────
@@ -47,14 +50,15 @@ function validItemId(id: string) { return recipes.some(r => r.id === id) }
 interface FlowCanvasProps {
   nodes: Node[]
   edges: Edge[]
-  activeKey: string   // changes when active items list changes → triggers fitView
+  activeKey: string
   nodeTypes: NodeTypes
+  edgeTypes: EdgeTypes
   onNodeDoubleClick: (treeIndex: number, recipeId: string) => void
   onRemoveTree: (treeIndex: number) => void
   exportName: string
 }
 
-function FlowCanvas({ nodes, edges, activeKey, nodeTypes, onNodeDoubleClick, onRemoveTree, exportName }: FlowCanvasProps) {
+function FlowCanvas({ nodes, edges, activeKey, nodeTypes, edgeTypes, onNodeDoubleClick, onRemoveTree, exportName }: FlowCanvasProps) {
   const { fitView, getNodes } = useReactFlow()
   const [flowNodes, setFlowNodes] = useNodesState(nodes)
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(edges)
@@ -143,6 +147,7 @@ function FlowCanvas({ nodes, edges, activeKey, nodeTypes, onNodeDoubleClick, onR
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodeDoubleClick={(_, node) => {
           const d = node.data as FactorioNodeData
           if (d.isRaw) return
@@ -156,9 +161,8 @@ function FlowCanvas({ nodes, edges, activeKey, nodeTypes, onNodeDoubleClick, onR
         zoomOnScroll
         minZoom={0.05}
         maxZoom={3}
-        defaultEdgeOptions={{ type: 'step' }}
       >
-        <Background variant={BackgroundVariant.Dots} color="#21262d" gap={24} size={1.5} />
+        <Background variant={BackgroundVariant.Dots} color="#2e2c2e" gap={24} size={1.5} />
         <Controls showInteractive={false} />
         <MiniMap
           nodeColor={node => {
@@ -383,107 +387,129 @@ export default function App() {
 
   return (
     <ReactFlowProvider>
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: '#0d1117' }}>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: '#242324' }}>
 
         {/* ── header ── */}
         <header style={{
-          background: '#161b22',
-          borderBottom: '1px solid #30363d',
-          padding: '6px 14px',
-          display: 'flex',
+          background: '#1a1919',
+          borderBottom: '2px solid #111',
+          boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.5)',
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
           alignItems: 'center',
-          gap: 8,
+          padding: '0 14px',
+          height: 56,
           flexShrink: 0,
-          minHeight: 44,
-          overflowX: 'auto',
+          gap: 12,
         }}>
 
-          {/* logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-            <div style={{ width: 20, height: 20, overflow: 'hidden', flexShrink: 0 }}>
-              <img src="/icons/groups/production.png"
-                style={{ height: 20, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
-                onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }}
+          {/* left: item chips + add */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap', overflow: 'hidden' }}>
+              {activeItemIds.map(itemId => {
+                const recipe = recipes.find(r => r.id === itemId)
+                return (
+                  <ItemChip
+                    key={itemId}
+                    itemId={itemId}
+                    name={recipe?.name ?? itemId}
+                    onRemove={() => removeItem(itemId)}
+                  />
+                )
+              })}
+            </div>
+            <button
+              onClick={() => setModalOpen(true)}
+              title="Add item to canvas"
+              style={{
+                background: '#272526',
+                border: '1px solid #111',
+                boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), inset -1px -1px 0 rgba(0,0,0,0.3)',
+                borderRadius: 1,
+                color: '#A19E9A',
+                fontSize: 11,
+                padding: '4px 10px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
+                fontFamily: "'Titillium Web', sans-serif",
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#FF9F1C'; e.currentTarget.style.borderColor = '#FF9F1C55' }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#A19E9A'; e.currentTarget.style.borderColor = '#111' }}
+            >
+              <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Add item
+            </button>
+          </div>
+
+          {/* center: title plate */}
+          <div style={{ textAlign: 'center', flexShrink: 0 }}>
+            <div style={{
+              fontFamily: "'Titillium Web', sans-serif",
+              fontWeight: 700,
+              fontSize: 18,
+              color: '#FF9F1C',
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              lineHeight: 1,
+              textShadow: '0 0 20px rgba(255,159,28,0.3)',
+            }}>
+              Crafting Tree
+            </div>
+            <div style={{
+              fontFamily: "'Titillium Web', sans-serif",
+              fontSize: 8,
+              color: '#5a5458',
+              letterSpacing: '0.28em',
+              textTransform: 'uppercase',
+              marginTop: 3,
+            }}>
+              Industrial Flow Planner
+            </div>
+          </div>
+
+          {/* right: quantity + stats */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <span style={{ color: '#5a5458', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Qty</span>
+              <input
+                type="number"
+                min={1}
+                max={100000}
+                value={quantity}
+                onChange={e => {
+                  const v = parseInt(e.target.value, 10)
+                  if (!isNaN(v) && v >= 1) setQuantity(v)
+                }}
+                title="Desired output quantity"
+                style={{
+                  width: 62,
+                  background: '#1b1b1b',
+                  border: '1px solid #111',
+                  boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.6)',
+                  borderRadius: 1,
+                  color: '#FFE6C0',
+                  fontSize: 12,
+                  padding: '3px 7px',
+                  outline: 'none',
+                  fontFamily: 'monospace',
+                }}
+                onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
+                onBlur={e => (e.currentTarget.style.borderColor = '#111')}
               />
             </div>
-            <span style={{ color: '#e8d44d', fontWeight: 700, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'monospace' }}>
-              Crafting Tree
-            </span>
-          </div>
-
-          <div style={{ width: 1, height: 20, background: '#30363d', flexShrink: 0 }} />
-
-          {/* active item chips */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
-            {activeItemIds.map(itemId => {
-              const recipe = recipes.find(r => r.id === itemId)
-              return (
-                <ItemChip
-                  key={itemId}
-                  itemId={itemId}
-                  name={recipe?.name ?? itemId}
-                  onRemove={() => removeItem(itemId)}
-                />
-              )
-            })}
-          </div>
-
-          {/* add item button */}
-          <button
-            onClick={() => setModalOpen(true)}
-            title="Add item to canvas"
-            style={{
-              background: '#21262d', border: '1px solid #30363d',
-              borderRadius: 4, color: '#8b949e', fontSize: 12,
-              padding: '4px 10px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 5,
-              flexShrink: 0,
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#2d333b'; e.currentTarget.style.borderColor = '#4a90d9'; e.currentTarget.style.color = '#c9d1d9' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#21262d'; e.currentTarget.style.borderColor = '#30363d'; e.currentTarget.style.color = '#8b949e' }}
-          >
-            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Add item
-          </button>
-
-          <div style={{ width: 1, height: 20, background: '#30363d', flexShrink: 0 }} />
-
-          {/* quantity */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-            <span style={{ color: '#6b7280', fontSize: 11 }}>×</span>
-            <input
-              type="number"
-              min={1}
-              max={100000}
-              value={quantity}
-              onChange={e => {
-                const v = parseInt(e.target.value, 10)
-                if (!isNaN(v) && v >= 1) setQuantity(v)
-              }}
-              title="Desired output quantity"
-              style={{
-                width: 60,
-                background: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: 4,
-                color: '#c9d1d9',
-                fontSize: 12,
-                padding: '3px 7px',
-                outline: 'none',
-                fontFamily: 'monospace',
-              }}
-              onFocus={e => (e.currentTarget.style.borderColor = '#4a90d9')}
-              onBlur={e => (e.currentTarget.style.borderColor = '#30363d')}
-            />
-          </div>
-
-          {/* stats */}
-          <div style={{ marginLeft: 'auto', color: '#484f58', fontSize: 11, fontFamily: 'monospace', display: 'flex', gap: 10, flexShrink: 0 }}>
-            <span>{nodes.length} nodes</span>
-            <span>{edges.length} edges</span>
+            <div style={{ color: '#3a3638', fontSize: 10, fontFamily: 'monospace', display: 'flex', gap: 8, flexShrink: 0 }}>
+              <span>{nodes.length}n</span>
+              <span>{edges.length}e</span>
+            </div>
           </div>
         </header>
 
@@ -494,6 +520,7 @@ export default function App() {
             edges={edges}
             activeKey={activeKey}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             onNodeDoubleClick={replaceItem}
             onRemoveTree={removeTreeByIndex}
             exportName={exportName}
@@ -522,8 +549,11 @@ function ItemChip({ itemId, name, onRemove }: { itemId: string; name: string; on
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 5,
-      background: '#21262d', border: '1px solid #30363d',
-      borderRadius: 4, padding: '3px 6px 3px 5px',
+      background: '#272526',
+      border: '1px solid #111',
+      boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.07), inset -1px -1px 0 rgba(0,0,0,0.35)',
+      borderRadius: 1,
+      padding: '3px 6px 3px 5px',
       flexShrink: 0,
     }}>
       {!imgFailed && (
@@ -535,17 +565,17 @@ function ItemChip({ itemId, name, onRemove }: { itemId: string; name: string; on
           />
         </div>
       )}
-      <span style={{ color: '#c9d1d9', fontSize: 12, whiteSpace: 'nowrap' }}>{name}</span>
+      <span style={{ color: '#FFE6C0', fontSize: 11, whiteSpace: 'nowrap', fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
       {onRemove && (
         <button
           onClick={onRemove}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: '#4b5563', fontSize: 14, lineHeight: 1,
+            color: '#5a5458', fontSize: 14, lineHeight: 1,
             padding: '0 0 0 2px', display: 'flex', alignItems: 'center',
           }}
           onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-          onMouseLeave={e => (e.currentTarget.style.color = '#4b5563')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#5a5458')}
         >
           ×
         </button>

@@ -13,6 +13,13 @@ function fmtAmount(n: number): string {
   return Number.isInteger(r) ? String(r) : r.toFixed(1)
 }
 
+const PANEL_STYLE = {
+  background: '#272526',
+  border: '1px solid #111',
+  boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.08), inset -1px -1px 0 rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.5)',
+  borderRadius: 2,
+}
+
 export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
   const [open, setOpen] = useState(true)
   const [imgFailed, setImgFailed] = useState<Record<string, boolean>>({})
@@ -22,33 +29,38 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
       position: 'absolute',
       top: 12,
       ...(side === 'left' ? { left: 12 } : { right: 12 }),
-      width: open ? 220 : 40,
-      background: '#161b22',
-      border: '1px solid #30363d',
-      borderRadius: 6,
+      width: open ? 220 : 38,
+      ...PANEL_STYLE,
       overflow: 'hidden',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
       zIndex: 100,
       transition: 'width 0.2s',
       userSelect: 'none',
     }}>
-      {/* header */}
+      {/* titlebar */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: open ? 'space-between' : 'center',
-        padding: open ? '8px 10px' : '8px',
-        borderBottom: open ? '1px solid #21262d' : 'none',
-        background: '#1c2128',
+        padding: open ? '0 10px' : '0',
+        height: 28,
+        borderBottom: open ? '1px solid #111' : 'none',
+        background: 'linear-gradient(180deg, #2c2a2b 0%, #252325 100%)',
         cursor: 'pointer',
       }} onClick={() => setOpen(o => !o)}>
         {open && (
-          <span style={{ color: '#c9d1d9', fontSize: 12, fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.04em' }}>
+          <span style={{
+            color: '#FF9F1C',
+            fontSize: 10,
+            fontWeight: 700,
+            fontFamily: "'Titillium Web', sans-serif",
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+          }}>
             Raw Materials
           </span>
         )}
         <svg
-          width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth={2}
+          width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#5a5458" strokeWidth={2}
           style={{
             transform: side === 'left'
               ? (open ? 'rotate(180deg)' : 'rotate(0deg)')
@@ -64,7 +76,7 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
       {open && (
         <div style={{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
           {items.length === 0 && (
-            <div style={{ color: '#4b5563', fontSize: 11, padding: '10px 12px' }}>None</div>
+            <div style={{ color: '#5a5458', fontSize: 11, padding: '10px 12px', fontFamily: 'monospace' }}>None</div>
           )}
           {items.map(item => (
             <div
@@ -74,11 +86,16 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
                 alignItems: 'center',
                 gap: 8,
                 padding: '5px 10px',
-                borderBottom: '1px solid #1c2128',
+                borderBottom: '1px solid #1a1919',
               }}
             >
-              {/* icon */}
-              <div style={{ width: 20, height: 20, overflow: 'hidden', flexShrink: 0 }}>
+              {/* icon in recessed well */}
+              <div style={{
+                width: 22, height: 22, overflow: 'hidden', flexShrink: 0,
+                background: '#1b1b1b', border: '1px solid #111',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.5)',
+              }}>
                 {!imgFailed[item.id] ? (
                   <img
                     src={`/icons/${item.id}.png`}
@@ -87,13 +104,9 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
                     onError={() => setImgFailed(prev => ({ ...prev, [item.id]: true }))}
                   />
                 ) : (
-                  <div style={{
-                    width: 20, height: 20, background: '#21262d', borderRadius: 2,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 7, color: '#6b7280',
-                  }}>
+                  <span style={{ fontSize: 7, color: '#5a5458', fontFamily: 'monospace' }}>
                     {item.id.slice(0, 2).toUpperCase()}
-                  </div>
+                  </span>
                 )}
               </div>
 
@@ -101,7 +114,8 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
               <span style={{
                 flex: 1,
                 fontSize: 11,
-                color: item.isFluid ? '#22d3ee' : '#c9d1d9',
+                fontFamily: "'Titillium Web', sans-serif",
+                color: item.isFluid ? '#22d3ee' : '#A19E9A',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -113,7 +127,7 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
               <span style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#f0a030',
+                color: '#FF9F1C',
                 flexShrink: 0,
                 fontFamily: 'monospace',
               }}>
@@ -122,14 +136,14 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
             </div>
           ))}
 
-          {/* total count */}
           {items.length > 0 && (
             <div style={{
-              padding: '6px 10px',
-              color: '#4b5563',
-              fontSize: 10,
+              padding: '5px 10px',
+              color: '#3a3638',
+              fontSize: 9,
               fontFamily: 'monospace',
               textAlign: 'right',
+              borderTop: '1px solid #1a1919',
             }}>
               {items.length} material{items.length !== 1 ? 's' : ''}{quantity > 1 ? ` · ×${quantity}` : ''}
             </div>
