@@ -213,18 +213,10 @@ function getSpriteCmd(
     const img = imgs.get(entry.file)
     if (!img) return null
     const dirIdx = DIR_IDX4[dir] ?? 0
-    let sx: number, sy: number
-    if (entry.dirAxis === 'h') {
-      const col = dirIdx % entry.lineLength
-      const row = Math.floor(dirIdx / entry.lineLength)
-      sx = col * entry.srcW
-      sy = row * entry.srcH
-    } else {
-      const col = dirIdx % entry.lineLength
-      const row = Math.floor(dirIdx / entry.lineLength)
-      sx = col * entry.srcW
-      sy = row * entry.srcH
-    }
+    const col = dirIdx % entry.lineLength
+    const row = Math.floor(dirIdx / entry.lineLength)
+    const sx = col * entry.srcW
+    const sy = row * entry.srcH
     return { img, sx, sy, sw: entry.srcW, sh: entry.srcH, dx, dy, dw, dh }
   }
 
@@ -324,7 +316,6 @@ interface Props {
 export function BlueprintPreview({ blueprintString, maxW = 258, maxH = 220, zoomable = false }: Props) {
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const dragRef      = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null)
   const renderRef    = useRef<RenderData | null>(null)
 
   const [status, setStatus] = useState<'loading' | 'ok' | 'empty' | 'error'>('loading')
@@ -440,7 +431,6 @@ export function BlueprintPreview({ blueprintString, maxW = 258, maxH = 220, zoom
     if (!zoomable) return
     e.preventDefault()
     const start = { startX: e.clientX, startY: e.clientY, ox: offsetRef.current.x, oy: offsetRef.current.y }
-    dragRef.current = start
     setIsDragging(true)
     const onMove = (ev: MouseEvent) => {
       setOffset({
@@ -449,7 +439,6 @@ export function BlueprintPreview({ blueprintString, maxW = 258, maxH = 220, zoom
       })
     }
     const onUp = () => {
-      dragRef.current = null
       setIsDragging(false)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
@@ -471,10 +460,6 @@ export function BlueprintPreview({ blueprintString, maxW = 258, maxH = 220, zoom
     })
   }, [maxW, maxH])
 
-  // Canvas is always viewport-sized (for both modes)
-  const vpW = zoomable ? maxW : undefined
-  const vpH = zoomable ? maxH : undefined
-
   if (status === 'loading') return <StatusBox maxW={zoomable ? maxW : undefined}>...</StatusBox>
   if (status === 'error')   return <StatusBox maxW={zoomable ? maxW : undefined}>invalid blueprint</StatusBox>
   if (status === 'empty')   return <StatusBox maxW={zoomable ? maxW : undefined}>no entities</StatusBox>
@@ -482,8 +467,8 @@ export function BlueprintPreview({ blueprintString, maxW = 258, maxH = 220, zoom
   const canvas = (
     <canvas
       ref={canvasRef}
-      width={vpW ?? maxW}
-      height={vpH ?? maxH}
+      width={maxW}
+      height={maxH}
       style={{ display: 'block', imageRendering: 'pixelated' }}
     />
   )

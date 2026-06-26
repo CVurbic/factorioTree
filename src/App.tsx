@@ -51,14 +51,12 @@ interface FlowCanvasProps {
   nodes: Node[]
   edges: Edge[]
   activeKey: string
-  nodeTypes: NodeTypes
-  edgeTypes: EdgeTypes
   onNodeDoubleClick: (treeIndex: number, recipeId: string) => void
   onRemoveTree: (treeIndex: number) => void
   exportName: string
 }
 
-function FlowCanvas({ nodes, edges, activeKey, nodeTypes, edgeTypes, onNodeDoubleClick, onRemoveTree, exportName }: FlowCanvasProps) {
+function FlowCanvas({ nodes, edges, activeKey, onNodeDoubleClick, onRemoveTree, exportName }: FlowCanvasProps) {
   const { fitView, getNodes } = useReactFlow()
   const [flowNodes, setFlowNodes] = useNodesState(nodes)
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(edges)
@@ -267,11 +265,6 @@ export default function App() {
     setActiveItemIds(prev => prev.filter((_, i) => i !== treeIndex))
   }, [])
 
-  // Add item to canvas without opening/closing modal (used from usage popup)
-  const addItemToCanvas = useCallback((itemId: string) => {
-    setActiveItemIds(prev => prev.includes(itemId) ? prev : [...prev, itemId])
-  }, [])
-
   // Replace a specific tree (double-click node) — fresh collapse state
   function replaceItem(treeIndex: number, newItemId: string) {
     setActiveItemIds(prev => {
@@ -308,7 +301,7 @@ export default function App() {
 
       const onExtendToParent = (newRootId: string) => extendTreeToParent(i, newRootId)
       const { nodes: tNodes, edges: tEdges } = buildFlowElements(
-        itemId, quantity, recipes, collapsed, onToggle, onExtendToParent,
+        itemId, quantity, collapsed, onToggle, onExtendToParent,
       )
 
       const prefix = `t${i}__`
@@ -378,13 +371,13 @@ export default function App() {
     }
 
     return { nodes: allNodes, edges: allEdges }
-  }, [activeItemIds, quantity, collapsedMap, toggleCollapse, removeItem, addItemToCanvas])
+  }, [activeItemIds, quantity, collapsedMap, toggleCollapse, removeItem])
 
   // Aggregate raw materials across all active trees
   const rawMaterials = useMemo(() => {
     const totals = new Map<string, { name: string; amount: number; isFluid: boolean }>()
     for (const itemId of activeItemIds) {
-      for (const m of getRawMaterials(itemId, quantity, recipes)) {
+      for (const m of getRawMaterials(itemId, quantity)) {
         const existing = totals.get(m.id)
         if (existing) existing.amount += m.amount
         else totals.set(m.id, { name: m.name, amount: m.amount, isFluid: m.isFluid })
@@ -532,8 +525,6 @@ export default function App() {
             nodes={nodes}
             edges={edges}
             activeKey={activeKey}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
             onNodeDoubleClick={replaceItem}
             onRemoveTree={removeTreeByIndex}
             exportName={exportName}

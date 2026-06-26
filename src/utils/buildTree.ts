@@ -1,6 +1,8 @@
 import type { Node, Edge } from '@xyflow/react'
-import type { Recipe } from '../data/recipes-generated'
+import { recipes } from '../data/recipes-generated'
 import type { FactorioNodeData } from '../types'
+
+const recipeMap = new Map(recipes.map(r => [r.id, r]))
 
 const COLUMN_WIDTH = 250
 const ROW_HEIGHT = 120
@@ -43,12 +45,10 @@ function assignY(node: TreeNode, leafCounter: { val: number }): void {
 export function buildFlowElements(
   rootId: string,
   quantity: number,
-  recipes: Recipe[],
   collapsedIds: Set<string>,
   onToggleCollapse: (recipeId: string) => void,
   onExtendToParent: (newRootId: string) => void,
 ): { nodes: Node<FactorioNodeData>[]; edges: Edge[] } {
-  const recipeMap = new Map(recipes.map(r => [r.id, r]))
   let uidCounter = 0
 
   function buildTreeNode(
@@ -168,10 +168,8 @@ export interface RawMaterial {
 export function getRawMaterials(
   rootId: string,
   quantity: number,
-  recipes: Recipe[],
 ): RawMaterial[] {
   const totals = new Map<string, { name: string; amount: number; isFluid: boolean }>()
-  const recipeMap = new Map(recipes.map(r => [r.id, r]))
 
   function walk(itemId: string, needed: number, visited: ReadonlySet<string>) {
     const recipe = recipeMap.get(itemId)
