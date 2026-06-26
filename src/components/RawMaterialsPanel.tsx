@@ -16,7 +16,7 @@ const PANEL_STYLE = {
 }
 
 export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(() => window.innerWidth >= 640)
   const [imgFailed, setImgFailed] = useState<Record<string, boolean>>({})
   const [width, setWidth] = useState(() => {
     try { return parseInt(localStorage.getItem('ft-raw-panel-w') ?? '') || 220 }

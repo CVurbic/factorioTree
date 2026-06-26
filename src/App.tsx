@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -54,9 +54,10 @@ interface FlowCanvasProps {
   onNodeDoubleClick: (treeIndex: number, recipeId: string) => void
   onRemoveTree: (treeIndex: number) => void
   exportName: string
+  isMobile: boolean
 }
 
-function FlowCanvas({ nodes, edges, activeKey, onNodeDoubleClick, onRemoveTree, exportName }: FlowCanvasProps) {
+function FlowCanvas({ nodes, edges, activeKey, onNodeDoubleClick, onRemoveTree, exportName, isMobile }: FlowCanvasProps) {
   const { fitView, getNodes } = useReactFlow()
   const [flowNodes, setFlowNodes] = useNodesState(nodes)
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(edges)
@@ -162,19 +163,21 @@ function FlowCanvas({ nodes, edges, activeKey, onNodeDoubleClick, onRemoveTree, 
       >
         <Background variant={BackgroundVariant.Dots} color="#2e2c2e" gap={24} size={1.5} />
         <Controls showInteractive={false} />
-        <MiniMap
-          nodeColor={node => {
-            const colors: Record<string, string> = {
-              'logistics': '#3b82f6', 'production': '#f97316',
-              'intermediate-products': '#94a3b8', 'space': '#a855f7',
-              'combat': '#ef4444', 'fluids': '#22d3ee', 'signals': '#22c55e',
-            }
-            return colors[(node.data as FactorioNodeData)?.group] ?? '#4b5563'
-          }}
-          maskColor="rgba(0,0,0,0.65)"
-          style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 4 }}
-          pannable zoomable
-        />
+        {!isMobile && (
+          <MiniMap
+            nodeColor={node => {
+              const colors: Record<string, string> = {
+                'logistics': '#3b82f6', 'production': '#f97316',
+                'intermediate-products': '#94a3b8', 'space': '#a855f7',
+                'combat': '#ef4444', 'fluids': '#22d3ee', 'signals': '#22c55e',
+              }
+              return colors[(node.data as FactorioNodeData)?.group] ?? '#4b5563'
+            }}
+            maskColor="rgba(0,0,0,0.65)"
+            style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 4 }}
+            pannable zoomable
+          />
+        )}
         <Panel position="top-right">
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
             <Legend />
@@ -200,9 +203,21 @@ function FlowCanvas({ nodes, edges, activeKey, onNodeDoubleClick, onRemoveTree, 
   )
 }
 
+// ── mobile breakpoint ────────────────────────────────────────────────────────
+
+const mq = window.matchMedia('(max-width: 639px)')
+function useMobile() {
+  return useSyncExternalStore(
+    cb => { mq.addEventListener('change', cb); return () => mq.removeEventListener('change', cb) },
+    () => mq.matches,
+  )
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const isMobile = useMobile()
+
   // Active items: list of item IDs on canvas (may be empty → triggers picker)
   const [activeItemIds, setActiveItemIds] = useState<string[]>(() =>
     loadStorage('ft-items', [], v => {
@@ -388,123 +403,150 @@ export default function App() {
           background: '#1a1919',
           borderBottom: '2px solid #111',
           boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.5)',
-          display: 'grid',
-          gridTemplateColumns: '1fr auto 1fr',
-          alignItems: 'center',
-          padding: '0 14px',
-          height: 56,
           flexShrink: 0,
-          gap: 12,
         }}>
-
-          {/* left: item chips + add */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap', overflow: 'hidden' }}>
-              {activeItemIds.map(itemId => {
-                const recipe = recipes.find(r => r.id === itemId)
-                return (
-                  <ItemChip
-                    key={itemId}
-                    itemId={itemId}
-                    name={recipe?.name ?? itemId}
-                    onRemove={() => removeItem(itemId)}
+          {isMobile ? (
+            /* ── mobile: 2 rows ── */
+            <>
+              {/* row 1: title + qty */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '0 12px', height: 40,
+              }}>
+                <div style={{
+                  fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
+                  fontSize: 14, color: '#FF9F1C', letterSpacing: '0.14em', textTransform: 'uppercase',
+                  textShadow: '0 0 14px rgba(255,159,28,0.3)',
+                }}>
+                  Crafting Tree
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#5a5458', fontSize: 10, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Qty</span>
+                  <input
+                    type="number" min={1} max={100000} value={quantity}
+                    onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 1) setQuantity(v) }}
+                    title="Desired output quantity"
+                    style={{
+                      width: 56, background: '#1b1b1b', border: '1px solid #111',
+                      boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.6)', borderRadius: 1,
+                      color: '#FFE6C0', fontSize: 12, padding: '3px 6px', outline: 'none', fontFamily: 'monospace',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
+                    onBlur={e => (e.currentTarget.style.borderColor = '#111')}
                   />
-                )
-              })}
-            </div>
-            <button
-              onClick={() => setModalOpen(true)}
-              title="Add item to canvas"
-              style={{
-                background: '#272526',
-                border: '1px solid #111',
-                boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), inset -1px -1px 0 rgba(0,0,0,0.3)',
-                borderRadius: 1,
-                color: '#A19E9A',
-                fontSize: 11,
-                padding: '4px 10px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                flexShrink: 0,
-                whiteSpace: 'nowrap',
-                fontFamily: "'Titillium Web', sans-serif",
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#FF9F1C'; e.currentTarget.style.borderColor = '#FF9F1C55' }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#A19E9A'; e.currentTarget.style.borderColor = '#111' }}
-            >
-              <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              Add item
-            </button>
-          </div>
-
-          {/* center: title plate */}
-          <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                </div>
+              </div>
+              {/* row 2: chips + add button (scrollable) */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '0 10px 8px', overflowX: 'auto',
+              }}>
+                {activeItemIds.map(itemId => {
+                  const recipe = recipes.find(r => r.id === itemId)
+                  return (
+                    <ItemChip key={itemId} itemId={itemId} name={recipe?.name ?? itemId} onRemove={() => removeItem(itemId)} />
+                  )
+                })}
+                <button
+                  onClick={() => setModalOpen(true)}
+                  title="Add item to canvas"
+                  style={{
+                    background: '#272526', border: '1px solid #111',
+                    boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), inset -1px -1px 0 rgba(0,0,0,0.3)',
+                    borderRadius: 1, color: '#A19E9A', fontSize: 11,
+                    padding: '4px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
+                    fontFamily: "'Titillium Web', sans-serif", fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                  }}
+                >
+                  <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Add
+                </button>
+              </div>
+            </>
+          ) : (
+            /* ── desktop: 3-column grid ── */
             <div style={{
-              fontFamily: "'Titillium Web', sans-serif",
-              fontWeight: 700,
-              fontSize: 18,
-              color: '#FF9F1C',
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              lineHeight: 1,
-              textShadow: '0 0 20px rgba(255,159,28,0.3)',
+              display: 'grid', gridTemplateColumns: '1fr auto 1fr',
+              alignItems: 'center', padding: '0 14px', height: 56, gap: 12,
             }}>
-              Crafting Tree
-            </div>
-            <div style={{
-              fontFamily: "'Titillium Web', sans-serif",
-              fontSize: 8,
-              color: '#5a5458',
-              letterSpacing: '0.28em',
-              textTransform: 'uppercase',
-              marginTop: 3,
-            }}>
-              Industrial Flow Planner
-            </div>
-          </div>
+              {/* left: item chips + add */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap', overflow: 'hidden' }}>
+                  {activeItemIds.map(itemId => {
+                    const recipe = recipes.find(r => r.id === itemId)
+                    return (
+                      <ItemChip key={itemId} itemId={itemId} name={recipe?.name ?? itemId} onRemove={() => removeItem(itemId)} />
+                    )
+                  })}
+                </div>
+                <button
+                  onClick={() => setModalOpen(true)}
+                  title="Add item to canvas"
+                  style={{
+                    background: '#272526', border: '1px solid #111',
+                    boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), inset -1px -1px 0 rgba(0,0,0,0.3)',
+                    borderRadius: 1, color: '#A19E9A', fontSize: 11,
+                    padding: '4px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
+                    fontFamily: "'Titillium Web', sans-serif", fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#FF9F1C'; e.currentTarget.style.borderColor = '#FF9F1C55' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#A19E9A'; e.currentTarget.style.borderColor = '#111' }}
+                >
+                  <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Add item
+                </button>
+              </div>
 
-          {/* right: quantity + stats */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              <span style={{ color: '#5a5458', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Qty</span>
-              <input
-                type="number"
-                min={1}
-                max={100000}
-                value={quantity}
-                onChange={e => {
-                  const v = parseInt(e.target.value, 10)
-                  if (!isNaN(v) && v >= 1) setQuantity(v)
-                }}
-                title="Desired output quantity"
-                style={{
-                  width: 62,
-                  background: '#1b1b1b',
-                  border: '1px solid #111',
-                  boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.6)',
-                  borderRadius: 1,
-                  color: '#FFE6C0',
-                  fontSize: 12,
-                  padding: '3px 7px',
-                  outline: 'none',
-                  fontFamily: 'monospace',
-                }}
-                onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
-                onBlur={e => (e.currentTarget.style.borderColor = '#111')}
-              />
+              {/* center: title plate */}
+              <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                <div style={{
+                  fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
+                  fontSize: 18, color: '#FF9F1C', letterSpacing: '0.18em',
+                  textTransform: 'uppercase', lineHeight: 1,
+                  textShadow: '0 0 20px rgba(255,159,28,0.3)',
+                }}>
+                  Crafting Tree
+                </div>
+                <div style={{
+                  fontFamily: "'Titillium Web', sans-serif", fontSize: 8,
+                  color: '#5a5458', letterSpacing: '0.28em', textTransform: 'uppercase', marginTop: 3,
+                }}>
+                  Industrial Flow Planner
+                </div>
+              </div>
+
+              {/* right: quantity + stats */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <span style={{ color: '#5a5458', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Qty</span>
+                  <input
+                    type="number" min={1} max={100000} value={quantity}
+                    onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 1) setQuantity(v) }}
+                    title="Desired output quantity"
+                    style={{
+                      width: 62, background: '#1b1b1b', border: '1px solid #111',
+                      boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.6)', borderRadius: 1,
+                      color: '#FFE6C0', fontSize: 12, padding: '3px 7px', outline: 'none', fontFamily: 'monospace',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
+                    onBlur={e => (e.currentTarget.style.borderColor = '#111')}
+                  />
+                </div>
+                <div style={{ color: '#3a3638', fontSize: 10, fontFamily: 'monospace', display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <span>{nodes.length}n</span>
+                  <span>{edges.length}e</span>
+                </div>
+              </div>
             </div>
-            <div style={{ color: '#3a3638', fontSize: 10, fontFamily: 'monospace', display: 'flex', gap: 8, flexShrink: 0 }}>
-              <span>{nodes.length}n</span>
-              <span>{edges.length}e</span>
-            </div>
-          </div>
+          )}
         </header>
 
         {/* ── canvas ── */}
@@ -516,6 +558,7 @@ export default function App() {
             onNodeDoubleClick={replaceItem}
             onRemoveTree={removeTreeByIndex}
             exportName={exportName}
+            isMobile={isMobile}
           />
           <RawMaterialsPanel items={rawMaterials} quantity={quantity} side="left" />
           <BlueprintsPanel activeItemIds={activeItemIds} />

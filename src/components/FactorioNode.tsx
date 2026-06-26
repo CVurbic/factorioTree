@@ -26,6 +26,8 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
   const [imgFailed, setImgFailed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [showUsage, setShowUsage] = useState(false)
+  const [touchTooltip, setTouchTooltip] = useState(false)
+  const isTouchDevice = 'ontouchstart' in window
 
   const usedIn = useMemo(() =>
     recipes.filter(r => r.ingredients.some(ing => ing.id === data.recipeId)),
@@ -43,14 +45,25 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
     return () => window.removeEventListener('keydown', handler)
   }, [hovered, showUsage])
 
+  // Close touch tooltip when tapping outside
+  useEffect(() => {
+    if (!touchTooltip) return
+    const handler = () => setTouchTooltip(false)
+    window.addEventListener('touchstart', handler)
+    return () => window.removeEventListener('touchstart', handler)
+  }, [touchTooltip])
+
   const { accent } = GROUP_COLORS[data.group] ?? GROUP_COLORS['other']
   const displayAmount = fmtAmount(data.amount)
   const displayTime = fmtTime(data.craftingTime)
+
+  const showTooltip = hovered || touchTooltip
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onTouchStart={e => { e.stopPropagation(); setTouchTooltip(v => !v) }}
       style={{
         position: 'relative',
         width: 160,
@@ -197,24 +210,27 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
         style={{ background: 'transparent', border: 'none', right: -1 }}
       />
 
-      {/* hover tooltip */}
-      {hovered && !showUsage && (
-        <div style={{
-          position: 'absolute',
-          left: 'calc(100% + 14px)',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          background: '#272526',
-          border: `1px solid ${accent}55`,
-          borderTop: `2px solid ${accent}`,
-          borderRadius: 2,
-          padding: '10px 12px',
-          minWidth: 185,
-          maxWidth: 245,
-          zIndex: 9999,
-          pointerEvents: 'none',
-          boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.8)',
-        }}>
+      {/* hover / touch tooltip */}
+      {showTooltip && !showUsage && (
+        <div
+          onTouchStart={e => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            left: 'calc(100% + 14px)',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            background: '#272526',
+            border: `1px solid ${accent}55`,
+            borderTop: `2px solid ${accent}`,
+            borderRadius: 2,
+            padding: '10px 12px',
+            minWidth: 185,
+            maxWidth: 245,
+            zIndex: 9999,
+            pointerEvents: touchTooltip ? 'auto' : 'none',
+            boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.8)',
+          }}
+        >
           <div style={{ color: '#FFE6C0', fontWeight: 700, fontSize: 13, marginBottom: 6, fontFamily: "'Titillium Web', sans-serif", letterSpacing: '0.04em' }}>
             {data.name}
           </div>
@@ -246,18 +262,32 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
           )}
           {data.isCollapsed && (
             <div style={{ marginTop: 8, color: '#FF9F1C', fontSize: 10, fontFamily: 'monospace' }}>
-              Subtree collapsed — click + to expand
+              Subtree collapsed — tap + to expand
             </div>
           )}
           {!data.isRaw && !data.isCollapsed && (
             <div style={{ marginTop: 8, color: '#6b6060', fontSize: 10, fontFamily: 'monospace' }}>
-              Double-click to set as root
+              {isTouchDevice ? 'Double-tap to set as root' : 'Double-click to set as root'}
             </div>
           )}
-          {usedIn.length > 0 && (
+          {usedIn.length > 0 && !isTouchDevice && (
             <div style={{ marginTop: 6, color: '#c9a84c', fontSize: 10, fontFamily: 'monospace' }}>
               Press U — extend tree up ({usedIn.length} recipe{usedIn.length !== 1 ? 's' : ''})
             </div>
+          )}
+          {usedIn.length > 0 && isTouchDevice && (
+            <button
+              onTouchStart={e => { e.stopPropagation(); setShowUsage(true); setTouchTooltip(false) }}
+              style={{
+                marginTop: 8, width: '100%', padding: '6px 8px',
+                background: '#1d1c1d', border: `1px solid ${accent}44`,
+                borderRadius: 2, cursor: 'pointer',
+                color: '#c9a84c', fontSize: 10, fontFamily: 'monospace',
+                textAlign: 'left',
+              }}
+            >
+              ↑ Used in {usedIn.length} recipe{usedIn.length !== 1 ? 's' : ''}
+            </button>
           )}
         </div>
       )}

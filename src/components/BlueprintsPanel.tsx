@@ -32,7 +32,7 @@ function fmtDate(s: string): string {
 type SortKey = 'upvotes' | 'downloads' | 'created_at'
 
 export function BlueprintsPanel({ activeItemIds }: Props) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(() => window.innerWidth >= 640)
   const [tab, setTab] = useState<'browse' | 'share'>('browse')
   const [width, setWidth] = useState(() => {
     try { return parseInt(localStorage.getItem('ft-bp-panel-w') ?? '') || 280 }
