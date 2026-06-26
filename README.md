@@ -1,16 +1,20 @@
 # Factorio Crafting Tree
 
-An interactive crafting tree visualizer for [Factorio](https://factorio.com). Select any craftable item and instantly see its full production chain — ingredients, sub-ingredients, crafting times, and raw material totals. Supports Space Age DLC.
+An interactive crafting tree visualizer for [Factorio](https://factorio.com). Select any craftable item and instantly see its full production chain — ingredients, sub-ingredients, crafting times, and raw material totals. Supports the Space Age DLC.
+
+**[factorio-tree.vercel.app](https://factorio-tree.vercel.app/)**
 
 ![Factorio Crafting Tree screenshot](src/assets/hero.png)
 
 ## Features
 
-- **Full crafting tree** — recursive breakdown of every ingredient down to raw materials
+- **Full crafting tree** — recursive breakdown of every ingredient down to raw materials, quantities scaled to your desired output
 - **Multi-item canvas** — add multiple items side by side, drag frames anywhere on the canvas
-- **Collapse / expand** subtrees to focus on what matters
+- **Collapse / expand** subtrees to focus on what matters; state survives re-rooting and page refresh
 - **Raw materials panel** — aggregated totals across all active trees
-- **Usage lookup** — hover any node and press **U** to see every recipe that uses that item
+- **Usage lookup** — hover any node and press **U** to see every recipe that uses that item; click one to extend the current tree upward to that recipe (quantities rescale automatically)
+- **Double-click to re-root** — double-click any node to make it the new root of its tree
+- **Blueprint preview** — paste a blueprint string to get a canvas rendering of the entities
 - **Item picker** — Factorio-style inventory grid, sorted by group and subgroup
 - **Quantity scaling** — set desired output quantity, all amounts update accordingly
 - **Export to PNG** — capture the current canvas
@@ -19,20 +23,17 @@ An interactive crafting tree visualizer for [Factorio](https://factorio.com). Se
 ## Getting started
 
 ```bash
-# Install dependencies
 npm install
-
-# Start dev server
 npm run dev
 ```
 
-That's it — icons and recipe data are included in the repo.
+Icons and recipe data are included in the repo — no Factorio install needed to run the dev server.
 
 ## Regenerating recipe data (optional)
 
-If you own Factorio and want to regenerate the recipe data (e.g. after a game update):
+If you want to regenerate the recipe data after a game update:
 
-1. Launch Factorio with `--dump-data` flag — this writes `script-output/data-raw-dump.json`
+1. Launch Factorio with `--dump-data` — writes `script-output/data-raw-dump.json`
 2. Copy the dump to `src/assets/data-raw-dump.json`
 3. Run the generator:
 
@@ -49,9 +50,7 @@ This rewrites `src/data/recipes-generated.ts` and copies all item icons to `publ
 - [@xyflow/react](https://reactflow.dev) (ReactFlow v12) for the canvas
 - [html-to-image](https://github.com/bubkoo/html-to-image) for PNG export
 
-## Contributing
-
-Pull requests welcome. The project is structured as:
+## Project structure
 
 ```
 src/
