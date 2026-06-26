@@ -265,19 +265,7 @@ export default function App() {
     setActiveItemIds(prev => prev.filter((_, i) => i !== treeIndex))
   }, [])
 
-  // Replace a specific tree (double-click node) — fresh collapse state
   function replaceItem(treeIndex: number, newItemId: string) {
-    setActiveItemIds(prev => {
-      if (treeIndex < 0 || treeIndex >= prev.length) return prev
-      const next = [...prev]
-      next[treeIndex] = newItemId
-      return next
-    })
-    setCollapsedMap(prev => ({ ...prev, [newItemId]: new Set() }))
-  }
-
-  // Extend a tree upward (used-in popup) — carry over collapse state from old root
-  function extendTreeToParent(treeIndex: number, newItemId: string) {
     const oldItemId = activeItemIds[treeIndex]
     setCollapsedMap(prev => ({ ...prev, [newItemId]: new Set(prev[oldItemId] ?? []) }))
     setActiveItemIds(prev => {
@@ -299,7 +287,7 @@ export default function App() {
       const collapsed = collapsedMap[itemId] ?? new Set<string>()
       const onToggle = (recipeId: string) => toggleCollapse(itemId, recipeId)
 
-      const onExtendToParent = (newRootId: string) => extendTreeToParent(i, newRootId)
+      const onExtendToParent = (newRootId: string) => replaceItem(i, newRootId)
       const { nodes: tNodes, edges: tEdges } = buildFlowElements(
         itemId, quantity, collapsed, onToggle, onExtendToParent,
       )
