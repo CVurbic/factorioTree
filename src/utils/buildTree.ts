@@ -23,77 +23,6 @@ interface TreeNode {
   y?: number
 }
 
-let uidCounter = 0
-
-function buildTreeNode(
-  itemId: string,
-  amount: number,
-  depth: number,
-  recipes: Recipe[],
-  collapsedIds: Set<string>,
-  onToggleCollapse: (id: string) => void,
-  visited: ReadonlySet<string> = new Set(),
-): TreeNode {
-  const recipe = recipes.find(r => r.id === itemId)
-  const uid = `${itemId}-${uidCounter++}`
-
-  const isLeaf = !recipe || recipe.ingredients.length === 0 || visited.has(itemId) || depth >= MAX_DEPTH
-  const willBeCollapsed = !isLeaf && collapsedIds.has(itemId)
-
-  if (isLeaf) {
-    return {
-      uid, recipeId: itemId,
-      name: recipe?.name ?? itemId,
-      amount,
-      children: [],
-      depth,
-      group: recipe?.group ?? 'other',
-      isFluid: recipe?.isFluid ?? false,
-      craftingTime: recipe?.craftingTime ?? 0.5,
-      resultAmount: recipe?.resultAmount ?? 1,
-      allIngredients: recipe?.ingredients.map(i => ({ id: i.id, name: i.name, amount: i.amount, type: i.type })) ?? [],
-      hasChildren: false,
-      isCollapsed: false,
-    }
-  }
-
-  // Amount of crafts needed = amount needed / yield per craft
-  const craftsNeeded = amount / recipe!.resultAmount
-
-  let children: TreeNode[] = []
-  if (!willBeCollapsed) {
-    const nextVisited = new Set(visited)
-    nextVisited.add(itemId)
-    children = recipe!.ingredients.map(ing =>
-      buildTreeNode(
-        ing.id,
-        craftsNeeded * ing.amount,
-        depth + 1,
-        recipes,
-        collapsedIds,
-        onToggleCollapse,
-        nextVisited,
-      ),
-    )
-  }
-
-  return {
-    uid,
-    recipeId: itemId,
-    name: recipe!.name,
-    amount,
-    children,
-    depth,
-    group: recipe!.group,
-    isFluid: recipe!.isFluid,
-    craftingTime: recipe!.craftingTime,
-    resultAmount: recipe!.resultAmount,
-    allIngredients: recipe!.ingredients.map(i => ({ id: i.id, name: i.name, amount: i.amount, type: i.type })),
-    hasChildren: true,
-    isCollapsed: willBeCollapsed,
-  }
-}
-
 function getMaxDepth(node: TreeNode): number {
   if (node.children.length === 0) return node.depth
   return Math.max(...node.children.map(getMaxDepth))
@@ -117,10 +46,69 @@ export function buildFlowElements(
   recipes: Recipe[],
   collapsedIds: Set<string>,
   onToggleCollapse: (recipeId: string) => void,
-  onAddItem: (itemId: string) => void,
+  onExtendToParent: (newRootId: string) => void,
 ): { nodes: Node<FactorioNodeData>[]; edges: Edge[] } {
-  uidCounter = 0
-  const root = buildTreeNode(rootId, quantity, 0, recipes, collapsedIds, onToggleCollapse)
+  const recipeMap = new Map(recipes.map(r => [r.id, r]))
+  let uidCounter = 0
+
+  function buildTreeNode(
+    itemId: string,
+    amount: number,
+    depth: number,
+    visited: ReadonlySet<string> = new Set(),
+  ): TreeNode {
+    const recipe = recipeMap.get(itemId)
+    const uid = `${itemId}-${uidCounter++}`
+
+    const isLeaf = !recipe || recipe.ingredients.length === 0 || visited.has(itemId) || depth >= MAX_DEPTH
+    const willBeCollapsed = !isLeaf && collapsedIds.has(itemId)
+
+    if (isLeaf) {
+      return {
+        uid, recipeId: itemId,
+        name: recipe?.name ?? itemId,
+        amount,
+        children: [],
+        depth,
+        group: recipe?.group ?? 'other',
+        isFluid: recipe?.isFluid ?? false,
+        craftingTime: recipe?.craftingTime ?? 0.5,
+        resultAmount: recipe?.resultAmount ?? 1,
+        allIngredients: recipe?.ingredients.map(i => ({ id: i.id, name: i.name, amount: i.amount, type: i.type })) ?? [],
+        hasChildren: false,
+        isCollapsed: false,
+      }
+    }
+
+    const craftsNeeded = amount / recipe!.resultAmount
+
+    let children: TreeNode[] = []
+    if (!willBeCollapsed) {
+      const nextVisited = new Set(visited)
+      nextVisited.add(itemId)
+      children = recipe!.ingredients.map(ing =>
+        buildTreeNode(ing.id, craftsNeeded * ing.amount, depth + 1, nextVisited),
+      )
+    }
+
+    return {
+      uid,
+      recipeId: itemId,
+      name: recipe!.name,
+      amount,
+      children,
+      depth,
+      group: recipe!.group,
+      isFluid: recipe!.isFluid,
+      craftingTime: recipe!.craftingTime,
+      resultAmount: recipe!.resultAmount,
+      allIngredients: recipe!.ingredients.map(i => ({ id: i.id, name: i.name, amount: i.amount, type: i.type })),
+      hasChildren: true,
+      isCollapsed: willBeCollapsed,
+    }
+  }
+
+  const root = buildTreeNode(rootId, quantity, 0)
   const maxDepth = getMaxDepth(root)
   assignY(root, { val: 0 })
 
@@ -147,7 +135,7 @@ export function buildFlowElements(
         resultAmount: node.resultAmount,
         allIngredients: node.allIngredients,
         onToggleCollapse,
-        onAddItem,
+        onExtendToParent,
       },
     })
 
@@ -183,9 +171,10 @@ export function getRawMaterials(
   recipes: Recipe[],
 ): RawMaterial[] {
   const totals = new Map<string, { name: string; amount: number; isFluid: boolean }>()
+  const recipeMap = new Map(recipes.map(r => [r.id, r]))
 
   function walk(itemId: string, needed: number, visited: ReadonlySet<string>) {
-    const recipe = recipes.find(r => r.id === itemId)
+    const recipe = recipeMap.get(itemId)
     if (!recipe || recipe.ingredients.length === 0 || visited.has(itemId)) {
       const existing = totals.get(itemId)
       if (existing) existing.amount += needed

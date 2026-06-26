@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { supabase, type Blueprint } from '../lib/supabase'
 import { recipes } from '../data/recipes-generated'
 import { BlueprintPreview } from './BlueprintPreview'
@@ -7,11 +7,22 @@ interface Props {
   activeItemIds: string[]
 }
 
-const VOTED_KEY = 'ft-voted-blueprints'
+const VOTED_KEY     = 'ft-voted-blueprints'
+const CLIENT_ID_KEY = 'ft-client-id'
 
 function getVoted(): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem(VOTED_KEY) ?? '[]') as string[]) }
   catch { return new Set() }
+}
+
+function getClientId(): string {
+  try {
+    let id = localStorage.getItem(CLIENT_ID_KEY)
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem(CLIENT_ID_KEY, id) }
+    return id
+  } catch {
+    return crypto.randomUUID()
+  }
 }
 
 function fmtDate(s: string): string {
@@ -23,6 +34,34 @@ type SortKey = 'upvotes' | 'downloads' | 'created_at'
 export function BlueprintsPanel({ activeItemIds }: Props) {
   const [open, setOpen] = useState(true)
   const [tab, setTab] = useState<'browse' | 'share'>('browse')
+  const [width, setWidth] = useState(() => {
+    try { return parseInt(localStorage.getItem('ft-bp-panel-w') ?? '') || 280 }
+    catch { return 280 }
+  })
+  const [resizing, setResizing] = useState(false)
+  const widthRef = useRef(width)
+  widthRef.current = width
+
+  function startResize(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setResizing(true)
+    const startX = e.clientX
+    const startW = widthRef.current
+    const onMove = (ev: MouseEvent) => {
+      const newW = Math.max(200, Math.min(600, startW + startX - ev.clientX))
+      setWidth(newW)
+      widthRef.current = newW
+    }
+    const onUp = () => {
+      setResizing(false)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      try { localStorage.setItem('ft-bp-panel-w', String(widthRef.current)) } catch {}
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   // Browse
   const [blueprints, setBlueprints] = useState<Blueprint[]>([])
@@ -31,6 +70,8 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
   const [voted, setVoted] = useState<Set<string>>(getVoted)
   const [sort, setSort] = useState<SortKey>('upvotes')
   const [copied, setCopied] = useState<string | null>(null)
+  const [selectedBpId, setSelectedBpId] = useState<string | null>(null)
+  const selectedBp = selectedBpId ? (blueprints.find(b => b.id === selectedBpId) ?? null) : null
 
   // Share form
   const [formName, setFormName] = useState('')
@@ -46,7 +87,7 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
   const [submitted, setSubmitted] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const fetchBlueprints = useCallback(async (sortKey: SortKey = sort) => {
+  const fetchBlueprints = useCallback(async (sortKey: SortKey) => {
     setLoading(true)
     setFetchError(null)
     let query = supabase
@@ -64,7 +105,7 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
     setLoading(false)
     if (error) { setFetchError(error.message); return }
     if (data) setBlueprints(data as Blueprint[])
-  }, [sort, activeItemIds])
+  }, [activeItemIds])
 
   useEffect(() => {
     if (open && tab === 'browse') fetchBlueprints(sort)
@@ -75,8 +116,9 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
       await navigator.clipboard.writeText(bp.blueprint_string)
       setCopied(bp.id)
       setTimeout(() => setCopied(null), 2000)
-      supabase.rpc('increment_downloads', { blueprint_id: bp.id }).then(() => {
-        setBlueprints(prev => prev.map(b => b.id === bp.id ? { ...b, downloads: b.downloads + 1 } : b))
+      supabase.rpc('increment_downloads', { blueprint_id: bp.id, client_id: getClientId() }).then(({ data }) => {
+        if (data === true)
+          setBlueprints(prev => prev.map(b => b.id === bp.id ? { ...b, downloads: b.downloads + 1 } : b))
       })
     } catch {
       // clipboard denied — show string in prompt as fallback
@@ -135,16 +177,17 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
   const disabled = !formName.trim() || !formString.trim() || formItemIds.length === 0
 
   return (
+    <>
     <div style={{
       position: 'absolute', top: 12, right: 12,
-      width: open ? 280 : 38,
+      width: open ? width : 38,
       background: '#272526',
       border: '1px solid #111',
       boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.08), inset -1px -1px 0 rgba(0,0,0,0.45), 0 4px 16px rgba(0,0,0,0.6)',
       borderRadius: 2,
       overflow: 'hidden',
       zIndex: 100,
-      transition: 'width 0.2s',
+      transition: resizing ? 'none' : 'width 0.2s',
       userSelect: 'none',
       display: 'flex',
       flexDirection: 'column',
@@ -191,6 +234,18 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
 
       {open && (
         <>
+          {/* resize handle — left edge */}
+          <div
+            onMouseDown={startResize}
+            style={{
+              position: 'absolute', top: 0, bottom: 0, left: 0,
+              width: 5, cursor: 'col-resize', zIndex: 10,
+              background: 'rgba(255,255,255,0.04)',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,159,28,0.3)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+          />
+
           {/* tabs */}
           <div style={{ display: 'flex', borderBottom: '1px solid #111', flexShrink: 0, background: '#222022' }}>
             {(['browse', 'share'] as const).map(t => (
@@ -258,7 +313,7 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
               )}
 
               {blueprints.map(bp => (
-                <div key={bp.id} style={{ padding: '8px 10px', borderBottom: '1px solid #1a1919' }}>
+                <div key={bp.id} onClick={() => setSelectedBpId(bp.id)} style={{ padding: '8px 10px', borderBottom: '1px solid #1a1919', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 5 }}>
                     <div style={{ display: 'flex', gap: 2, flexShrink: 0, flexWrap: 'wrap', maxWidth: 46 }}>
                       {bp.item_ids.map(id => (
@@ -294,7 +349,7 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
 
                   <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
                     <button
-                      onClick={() => handleCopy(bp)}
+                      onClick={(e) => { e.stopPropagation(); handleCopy(bp) }}
                       style={{
                         flex: 1, padding: '4px 8px',
                         background: copied === bp.id ? '#1a2a1a' : '#1b1b1b',
@@ -399,7 +454,7 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
                               boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.04)',
                             }}>
                               <div style={{ width: 14, height: 14, overflow: 'hidden', flexShrink: 0 }}>
-                                <img src={`/icons/${id}.png`} alt="" style={{ height: 14, imageRendering: 'pixelated', display: 'block' }} />
+                                <img src={`/icons/${id}.png`} alt="" style={{ height: 14, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }} />
                               </div>
                               <span style={{ color: '#FFE6C0', fontSize: 10, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
                               <button
@@ -446,7 +501,7 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                           >
                             <div style={{ width: 18, height: 18, flexShrink: 0, background: '#1b1b1b', border: '1px solid #111', overflow: 'hidden' }}>
-                              <img src={`/icons/${r.id}.png`} alt="" style={{ height: 18, imageRendering: 'pixelated', display: 'block' }} />
+                              <img src={`/icons/${r.id}.png`} alt="" style={{ height: 18, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }} />
                             </div>
                             <span style={{ color: '#FFE6C0', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{r.name}</span>
                           </div>
@@ -486,6 +541,189 @@ export function BlueprintsPanel({ activeItemIds }: Props) {
           )}
         </>
       )}
+    </div>
+    {selectedBp && (
+      <BlueprintModal
+        bp={selectedBp}
+        copied={copied}
+        voted={voted}
+        onClose={() => setSelectedBpId(null)}
+        onCopy={handleCopy}
+        onUpvote={handleUpvote}
+      />
+    )}
+    </>
+  )
+}
+
+function BlueprintModal({ bp, copied, voted, onClose, onCopy, onUpvote }: {
+  bp: Blueprint
+  copied: string | null
+  voted: Set<string>
+  onClose: () => void
+  onCopy: (bp: Blueprint) => void
+  onUpvote: (e: React.MouseEvent, bp: Blueprint) => void
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.75)',
+        zIndex: 500,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#272526',
+          border: '1px solid #111',
+          borderTop: '2px solid #FF9F1C',
+          boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.08), inset -1px -1px 0 rgba(0,0,0,0.45), 0 12px 40px rgba(0,0,0,0.9)',
+          borderRadius: 2,
+          width: 520,
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          userSelect: 'none',
+        }}
+      >
+        {/* header */}
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          padding: '12px 14px 10px',
+          borderBottom: '1px solid #111',
+          background: 'linear-gradient(180deg, #2c2a2b 0%, #252325 100%)',
+          flexShrink: 0,
+          gap: 10,
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: '#FFE6C0', fontSize: 15, fontWeight: 700, fontFamily: "'Titillium Web', sans-serif", lineHeight: 1.3 }}>
+              {bp.name}
+            </div>
+            <div style={{ color: '#5a5458', fontSize: 10, marginTop: 3, fontFamily: 'monospace' }}>
+              by {bp.author} · {fmtDate(bp.created_at)}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#5a5458', fontSize: 20, lineHeight: 1, padding: '0 4px', flexShrink: 0 }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#5a5458')}
+          >×</button>
+        </div>
+
+        {/* preview */}
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid #111', flexShrink: 0, background: '#1d1c1d' }}>
+          <BlueprintPreview blueprintString={bp.blueprint_string} maxW={488} maxH={380} zoomable />
+        </div>
+
+        {/* body */}
+        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {/* description */}
+          {bp.description && (
+            <div style={{ color: '#A19E9A', fontSize: 11, lineHeight: 1.65, fontFamily: 'monospace' }}>
+              {bp.description}
+            </div>
+          )}
+
+          {/* items produced */}
+          <div>
+            <ModalLabel>Produces</ModalLabel>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {bp.item_ids.map(id => {
+                const name = recipes.find(r => r.id === id)?.name ?? id
+                return (
+                  <div key={id} style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: '#1b1b1b', border: '1px solid #111', borderRadius: 1,
+                    padding: '3px 8px',
+                    boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.04)',
+                  }}>
+                    <div style={{ width: 16, height: 16, overflow: 'hidden', flexShrink: 0, background: '#222' }}>
+                      <img
+                        src={`/icons/${id}.png`} alt=""
+                        style={{ height: 16, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
+                        onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }}
+                      />
+                    </div>
+                    <span style={{ color: '#FFE6C0', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* stats */}
+          <div style={{ display: 'flex', gap: 20, borderTop: '1px solid #1a1919', paddingTop: 10 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: '#22c55e', fontSize: 16, fontWeight: 700, fontFamily: 'monospace', lineHeight: 1 }}>{bp.upvotes}</div>
+              <ModalLabel>Upvotes</ModalLabel>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: '#FF9F1C', fontSize: 16, fontWeight: 700, fontFamily: 'monospace', lineHeight: 1 }}>{bp.downloads}</div>
+              <ModalLabel>Copies</ModalLabel>
+            </div>
+          </div>
+
+          {/* actions */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              onClick={() => onCopy(bp)}
+              style={{
+                flex: 1, padding: '7px 10px',
+                background: copied === bp.id ? '#1a2a1a' : '#1b1b1b',
+                border: `1px solid ${copied === bp.id ? '#22c55e44' : '#111'}`,
+                boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.04)',
+                borderRadius: 1, cursor: 'pointer',
+                color: copied === bp.id ? '#22c55e' : '#A19E9A',
+                fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.04em',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { if (copied !== bp.id) e.currentTarget.style.color = '#FFE6C0' }}
+              onMouseLeave={e => { if (copied !== bp.id) e.currentTarget.style.color = '#A19E9A' }}
+            >
+              {copied === bp.id ? '✓ Copied!' : '⧉ Copy Blueprint String'}
+            </button>
+            <button
+              onClick={e => onUpvote(e, bp)}
+              title={voted.has(bp.id) ? 'Already upvoted' : 'Upvote'}
+              style={{
+                flexShrink: 0,
+                background: voted.has(bp.id) ? '#1a2a1a' : '#1b1b1b',
+                border: `1px solid ${voted.has(bp.id) ? '#22c55e44' : '#111'}`,
+                boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.04)',
+                borderRadius: 1,
+                cursor: voted.has(bp.id) ? 'default' : 'pointer',
+                color: voted.has(bp.id) ? '#22c55e' : '#5a5458',
+                fontSize: 11, padding: '5px 14px',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+              onMouseEnter={e => { if (!voted.has(bp.id)) e.currentTarget.style.color = '#22c55e' }}
+              onMouseLeave={e => { if (!voted.has(bp.id)) e.currentTarget.style.color = '#5a5458' }}
+            >
+              ▲ <span style={{ fontFamily: 'monospace' }}>{bp.upvotes}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ModalLabel({ children }: { children: ReactNode }) {
+  return (
+    <div style={{ color: '#5a5458', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 5, marginTop: 2, fontFamily: "'Titillium Web', sans-serif", fontWeight: 700 }}>
+      {children}
     </div>
   )
 }

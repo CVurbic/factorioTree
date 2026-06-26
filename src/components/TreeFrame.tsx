@@ -1,9 +1,11 @@
-import type { Node, NodeProps } from '@xyflow/react'
+import { NodeResizer, type Node, type NodeProps } from '@xyflow/react'
 
 export interface TreeFrameData {
   label: string
   itemId: string
   onRemove: () => void
+  initialWidth?: number
+  initialHeight?: number
   [key: string]: unknown
 }
 
@@ -23,6 +25,14 @@ export function TreeFrame({ data, selected }: NodeProps<TreeFrameNodeType>) {
         ? 'inset 1px 1px 0 rgba(255,255,255,0.10), inset -1px -1px 0 rgba(0,0,0,0.45), 0 0 12px rgba(255,159,28,0.15)'
         : 'inset 1px 1px 0 rgba(255,255,255,0.07), inset -1px -1px 0 rgba(0,0,0,0.4)',
     }}>
+
+      <NodeResizer
+        isVisible={selected}
+        minWidth={data.initialWidth ?? 200}
+        minHeight={data.initialHeight ?? 80}
+        handleStyle={{ width: 8, height: 8, background: '#FF9F1C', border: '1px solid #1d1c1d', borderRadius: 2 }}
+        lineStyle={{ border: '1px dashed #FF9F1C66' }}
+      />
 
       {/* titlebar */}
       <div style={{

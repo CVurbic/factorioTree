@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react'
 import type { Node, NodeProps } from '@xyflow/react'
 import type { FactorioNodeData } from '../types'
 import { recipes } from '../data/recipes-generated'
+import { fmtAmount } from '../utils/fmt'
 
 type FactorioNodeType = Node<FactorioNodeData, 'factorioNode'>
 
@@ -15,12 +16,6 @@ const GROUP_COLORS: Record<string, { accent: string }> = {
   'fluids':                { accent: '#22d3ee' },
   'signals':               { accent: '#22c55e' },
   'other':                 { accent: '#6b6060' },
-}
-
-function fmtAmount(n: number): string {
-  if (Number.isInteger(n)) return String(n)
-  const r = Math.round(n * 10) / 10
-  return Number.isInteger(r) ? String(r) : r.toFixed(1)
 }
 
 function fmtTime(t: number): string {
@@ -261,7 +256,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
           )}
           {usedIn.length > 0 && (
             <div style={{ marginTop: 6, color: '#c9a84c', fontSize: 10, fontFamily: 'monospace' }}>
-              Press U — used in {usedIn.length} recipe{usedIn.length !== 1 ? 's' : ''}
+              Press U — extend tree up ({usedIn.length} recipe{usedIn.length !== 1 ? 's' : ''})
             </div>
           )}
         </div>
@@ -319,7 +314,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
                 return (
                   <div
                     key={r.id}
-                    onClick={() => { data.onAddItem(r.id); setShowUsage(false) }}
+                    onClick={() => { data.onExtendToParent(r.id); setShowUsage(false) }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '5px 4px', borderRadius: 1, marginBottom: 2, cursor: 'pointer',
@@ -347,7 +342,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
                         →×{r.resultAmount}
                       </span>
                     )}
-                    <span style={{ color: '#6b6060', fontSize: 13, flexShrink: 0, marginLeft: 'auto' }}>+</span>
+                    <span style={{ color: '#6b6060', fontSize: 11, flexShrink: 0, marginLeft: 'auto' }}>↑</span>
                   </div>
                 )
               })

@@ -1,16 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { RawMaterial } from '../utils/buildTree'
+import { fmtAmount } from '../utils/fmt'
 
 interface Props {
   items: RawMaterial[]
   quantity: number
   side?: 'left' | 'right'
-}
-
-function fmtAmount(n: number): string {
-  if (Number.isInteger(n)) return String(n)
-  const r = Math.round(n * 10) / 10
-  return Number.isInteger(r) ? String(r) : r.toFixed(1)
 }
 
 const PANEL_STYLE = {
@@ -23,17 +18,46 @@ const PANEL_STYLE = {
 export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
   const [open, setOpen] = useState(true)
   const [imgFailed, setImgFailed] = useState<Record<string, boolean>>({})
+  const [width, setWidth] = useState(() => {
+    try { return parseInt(localStorage.getItem('ft-raw-panel-w') ?? '') || 220 }
+    catch { return 220 }
+  })
+  const [resizing, setResizing] = useState(false)
+  const widthRef = useRef(width)
+  widthRef.current = width
+
+  function startResize(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setResizing(true)
+    const startX = e.clientX
+    const startW = widthRef.current
+    const onMove = (ev: MouseEvent) => {
+      const delta = side === 'left' ? ev.clientX - startX : startX - ev.clientX
+      const newW = Math.max(160, Math.min(600, startW + delta))
+      setWidth(newW)
+      widthRef.current = newW
+    }
+    const onUp = () => {
+      setResizing(false)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      try { localStorage.setItem('ft-raw-panel-w', String(widthRef.current)) } catch {}
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   return (
     <div style={{
       position: 'absolute',
       top: 12,
       ...(side === 'left' ? { left: 12 } : { right: 12 }),
-      width: open ? 220 : 38,
+      width: open ? width : 38,
       ...PANEL_STYLE,
       overflow: 'hidden',
       zIndex: 100,
-      transition: 'width 0.2s',
+      transition: resizing ? 'none' : 'width 0.2s',
       userSelect: 'none',
     }}>
       {/* titlebar */}
@@ -71,6 +95,21 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
           <path d="M9 18l6-6-6-6" />
         </svg>
       </div>
+
+      {/* resize handle */}
+      {open && (
+        <div
+          onMouseDown={startResize}
+          style={{
+            position: 'absolute', top: 0, bottom: 0,
+            ...(side === 'left' ? { right: 0 } : { left: 0 }),
+            width: 5, cursor: 'col-resize', zIndex: 10,
+            background: 'rgba(255,255,255,0.04)',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,159,28,0.3)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+        />
+      )}
 
       {/* list */}
       {open && (

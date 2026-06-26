@@ -272,7 +272,7 @@ export default function App() {
     setActiveItemIds(prev => prev.includes(itemId) ? prev : [...prev, itemId])
   }, [])
 
-  // Replace a specific tree (double-click node)
+  // Replace a specific tree (double-click node) — fresh collapse state
   function replaceItem(treeIndex: number, newItemId: string) {
     setActiveItemIds(prev => {
       if (treeIndex < 0 || treeIndex >= prev.length) return prev
@@ -281,6 +281,18 @@ export default function App() {
       return next
     })
     setCollapsedMap(prev => ({ ...prev, [newItemId]: new Set() }))
+  }
+
+  // Extend a tree upward (used-in popup) — carry over collapse state from old root
+  function extendTreeToParent(treeIndex: number, newItemId: string) {
+    const oldItemId = activeItemIds[treeIndex]
+    setCollapsedMap(prev => ({ ...prev, [newItemId]: new Set(prev[oldItemId] ?? []) }))
+    setActiveItemIds(prev => {
+      if (treeIndex < 0 || treeIndex >= prev.length) return prev
+      const next = [...prev]
+      next[treeIndex] = newItemId
+      return next
+    })
   }
 
   // Build all trees side by side
@@ -294,8 +306,9 @@ export default function App() {
       const collapsed = collapsedMap[itemId] ?? new Set<string>()
       const onToggle = (recipeId: string) => toggleCollapse(itemId, recipeId)
 
+      const onExtendToParent = (newRootId: string) => extendTreeToParent(i, newRootId)
       const { nodes: tNodes, edges: tEdges } = buildFlowElements(
-        itemId, quantity, recipes, collapsed, onToggle, addItemToCanvas,
+        itemId, quantity, recipes, collapsed, onToggle, onExtendToParent,
       )
 
       const prefix = `t${i}__`
@@ -334,7 +347,7 @@ export default function App() {
           type: 'treeFrame',
           position: { x: frameAbsX, y: frameAbsY },
           style: { width: frameW, height: frameH },
-          data: { label: recipe?.name ?? itemId, itemId, onRemove: () => removeItem(itemId) },
+          data: { label: recipe?.name ?? itemId, itemId, onRemove: () => removeItem(itemId), initialWidth: frameW, initialHeight: frameH },
           selectable: true,
           draggable: true,
           zIndex: -1,
@@ -345,7 +358,7 @@ export default function App() {
           ...n,
           id: `${prefix}${n.id}`,
           parentId: frameId,
-          extent: undefined as unknown as 'parent',
+          extent: 'parent' as const,
           position: {
             x: n.position.x - minLocalX + PAD_X,
             y: n.position.y - minLocalY + PAD_TOP,
