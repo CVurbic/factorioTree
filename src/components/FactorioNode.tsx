@@ -63,7 +63,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onTouchStart={e => { e.stopPropagation(); setTouchTooltip(v => !v) }}
+      onTouchStart={e => { if (e.touches.length > 1) return; e.stopPropagation(); setTouchTooltip(v => !v) }}
       style={{
         position: 'relative',
         width: 160,
@@ -213,7 +213,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
       {/* hover / touch tooltip */}
       {showTooltip && !showUsage && (
         <div
-          onTouchStart={e => e.stopPropagation()}
+          onTouchStart={e => { if (e.touches.length === 1) e.stopPropagation() }}
           style={{
             position: 'absolute',
             left: 'calc(100% + 14px)',
