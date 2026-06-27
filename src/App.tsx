@@ -27,7 +27,7 @@ import { TreeFrame } from './components/TreeFrame'
 import { ConveyorEdge } from './components/ConveyorEdge'
 import { ItemPickerModal } from './components/ItemPickerModal'
 import { RawMaterialsPanel } from './components/RawMaterialsPanel'
-import { BlueprintsPanel } from './components/BlueprintsPanel'
+import { BlueprintsPage } from './components/BlueprintsPage'
 import { Legend } from './components/Legend'
 
 const nodeTypes: NodeTypes = { factorioNode: FactorioNode, treeFrame: TreeFrame }
@@ -217,6 +217,7 @@ function useMobile() {
 
 export default function App() {
   const isMobile = useMobile()
+  const [view, setView] = useState<'tree' | 'blueprints'>('tree')
 
   // Active items: list of item IDs on canvas (may be empty → triggers picker)
   const [activeItemIds, setActiveItemIds] = useState<string[]>(() =>
@@ -408,18 +409,32 @@ export default function App() {
           {isMobile ? (
             /* ── mobile: 2 rows ── */
             <>
-              {/* row 1: title + qty */}
+              {/* row 1: title + blueprints toggle + qty */}
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '0 12px', height: 40,
+                padding: '0 12px', height: 40, gap: 8,
               }}>
                 <div style={{
                   fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
                   fontSize: 14, color: '#FF9F1C', letterSpacing: '0.14em', textTransform: 'uppercase',
-                  textShadow: '0 0 14px rgba(255,159,28,0.3)',
+                  textShadow: '0 0 14px rgba(255,159,28,0.3)', flexShrink: 0,
                 }}>
                   Crafting Tree
                 </div>
+                <button
+                  onClick={() => setView(v => v === 'tree' ? 'blueprints' : 'tree')}
+                  style={{
+                    background: view === 'blueprints' ? '#1a1a2a' : 'none',
+                    border: `1px solid ${view === 'blueprints' ? '#a855f744' : '#1a1919'}`,
+                    borderRadius: 1, cursor: 'pointer',
+                    color: view === 'blueprints' ? '#a855f7' : '#5a5458',
+                    fontSize: 9, padding: '3px 8px', flexShrink: 0,
+                    fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                  }}
+                >
+                  Blueprints
+                </button>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ color: '#5a5458', fontSize: 10, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Qty</span>
                   <input
@@ -523,7 +538,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* right: quantity + stats */}
+              {/* right: quantity + stats + blueprints toggle */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   <span style={{ color: '#5a5458', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Qty</span>
@@ -544,24 +559,46 @@ export default function App() {
                   <span>{nodes.length}n</span>
                   <span>{edges.length}e</span>
                 </div>
+                <button
+                  onClick={() => setView(v => v === 'tree' ? 'blueprints' : 'tree')}
+                  style={{
+                    background: view === 'blueprints' ? '#1a1a2a' : '#1b1b1b',
+                    border: `1px solid ${view === 'blueprints' ? '#a855f744' : '#111'}`,
+                    boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.04)',
+                    borderRadius: 1, cursor: 'pointer',
+                    color: view === 'blueprints' ? '#a855f7' : '#5a5458',
+                    fontSize: 10, padding: '4px 10px', flexShrink: 0,
+                    fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                  }}
+                  onMouseEnter={e => { if (view !== 'blueprints') { e.currentTarget.style.color = '#a855f7'; e.currentTarget.style.borderColor = '#a855f744' } }}
+                  onMouseLeave={e => { if (view !== 'blueprints') { e.currentTarget.style.color = '#5a5458'; e.currentTarget.style.borderColor = '#111' } }}
+                >
+                  Blueprints
+                </button>
               </div>
             </div>
           )}
         </header>
 
-        {/* ── canvas ── */}
-        <div style={{ flex: 1, position: 'relative' }}>
-          <FlowCanvas
-            nodes={nodes}
-            edges={edges}
-            activeKey={activeKey}
-            onNodeDoubleClick={replaceItem}
-            onRemoveTree={removeTreeByIndex}
-            exportName={exportName}
-            isMobile={isMobile}
-          />
-          <RawMaterialsPanel items={rawMaterials} quantity={quantity} side="left" />
-          <BlueprintsPanel activeItemIds={activeItemIds} />
+        {/* ── canvas / blueprints ── */}
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          {view === 'blueprints' ? (
+            <BlueprintsPage />
+          ) : (
+            <>
+              <FlowCanvas
+                nodes={nodes}
+                edges={edges}
+                activeKey={activeKey}
+                onNodeDoubleClick={replaceItem}
+                onRemoveTree={removeTreeByIndex}
+                exportName={exportName}
+                isMobile={isMobile}
+              />
+              <RawMaterialsPanel items={rawMaterials} quantity={quantity} side="left" />
+            </>
+          )}
         </div>
 
         {/* ── modal ── */}

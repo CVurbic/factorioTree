@@ -14,7 +14,17 @@ export interface Blueprint {
   author: string
   blueprint_string: string
   item_ids: string[]
+  type: 'blueprint' | 'blueprint_book'
+  blueprint_count: number | null
   upvotes: number
   downloads: number
+  created_at: string
+}
+
+export interface Comment {
+  id: string
+  blueprint_id: string
+  author: string
+  body: string
   created_at: string
 }
