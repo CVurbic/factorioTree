@@ -169,11 +169,15 @@ export function BlueprintsPage() {
   }, [pageState, sort, fetchBlueprints])
 
   const filtered = search.trim()
-    ? blueprints.filter(bp =>
-        bp.name.toLowerCase().includes(search.toLowerCase()) ||
-        bp.description?.toLowerCase().includes(search.toLowerCase()) ||
-        bp.author.toLowerCase().includes(search.toLowerCase()),
-      )
+    ? blueprints.filter(bp => {
+        const q = search.toLowerCase()
+        return (
+          bp.name.toLowerCase().includes(q) ||
+          bp.description?.toLowerCase().includes(q) ||
+          bp.author.toLowerCase().includes(q) ||
+          bp.item_ids.some(id => (recipes.find(r => r.id === id)?.name ?? id).toLowerCase().includes(q))
+        )
+      })
     : blueprints
 
   async function handleCopy(bp: Blueprint) {
@@ -347,7 +351,7 @@ export function BlueprintsPage() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, author…"
+              placeholder="Search by name, item, author…"
               style={{
                 flex: 1, minWidth: 120,
                 background: '#1b1b1b', border: '1px solid #111', borderRadius: 1,
