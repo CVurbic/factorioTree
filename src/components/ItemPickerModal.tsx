@@ -5,6 +5,7 @@ interface Props {
   onSelect: (itemId: string) => void
   onClose: () => void
   activeItemIds?: string[]
+  allowedIds?: Set<string>
 }
 
 // Pre-sort all recipes by subgroup order, then item order within each group
@@ -19,7 +20,6 @@ for (const g of itemGroups) {
     })
 }
 
-// Group subgroups together so we can render separators
 function groupBySubgroup(items: typeof recipes) {
   const out: Array<{ subgroup: string; items: typeof recipes }> = []
   for (const item of items) {
@@ -30,7 +30,7 @@ function groupBySubgroup(items: typeof recipes) {
   return out
 }
 
-export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props) {
+export function ItemPickerModal({ onSelect, onClose, activeItemIds = [], allowedIds }: Props) {
   const [activeGroup, setActiveGroup] = useState(itemGroups[0]?.id ?? '')
   const [filter, setFilter] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -43,22 +43,34 @@ export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const visibleGroups = itemGroups.filter(g => (itemsByGroup[g.id]?.length ?? 0) > 0)
+  const poolByGroup = useMemo(() => {
+    if (!allowedIds) return itemsByGroup
+    const out: Record<string, typeof recipes> = {}
+    for (const g of itemGroups) out[g.id] = (itemsByGroup[g.id] ?? []).filter(r => allowedIds.has(r.id))
+    return out
+  }, [allowedIds])
+
+  const visibleGroups = itemGroups.filter(g => (poolByGroup[g.id]?.length ?? 0) > 0)
+
+  const pool = useMemo(
+    () => allowedIds ? recipes.filter(r => allowedIds.has(r.id)) : recipes,
+    [allowedIds],
+  )
 
   const filteredItems = useMemo(() => {
     if (!filter.trim()) return null
     const q = filter.toLowerCase()
-    return recipes
+    return pool
       .filter(r => r.name.toLowerCase().includes(q))
       .sort((a, b) => {
         const sg = a.subgroupOrder.localeCompare(b.subgroupOrder)
         return sg !== 0 ? sg : a.itemOrder.localeCompare(b.itemOrder)
       })
-  }, [filter])
+  }, [filter, pool])
 
   const subgroupedItems = useMemo(() =>
-    filteredItems ? null : groupBySubgroup(itemsByGroup[activeGroup] ?? []),
-    [activeGroup, filteredItems],
+    filteredItems ? null : groupBySubgroup(poolByGroup[activeGroup] ?? []),
+    [activeGroup, filteredItems, poolByGroup],
   )
 
   return (
@@ -74,8 +86,8 @@ export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: '#1a1c21',
-          border: '1px solid #3a3d47',
+          background: 'var(--th-bg-modal)',
+          border: '1px solid var(--th-br-lt)',
           borderRadius: 4,
           width: 680,
           maxWidth: '95vw',
@@ -83,25 +95,24 @@ export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          boxShadow: '0 0 0 1px #0d0f14, 0 24px 64px rgba(0,0,0,0.9)',
+          boxShadow: '0 0 0 1px var(--th-br), 0 24px 64px rgba(0,0,0,0.6)',
         }}
       >
         {/* ── top bar: title + search + close ── */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '8px 10px',
-          borderBottom: '1px solid #2a2d35',
+          borderBottom: '1px solid var(--th-br-mid)',
           flexShrink: 0,
-          background: '#111317',
+          background: 'var(--th-bg-modal-h)',
         }}>
           <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 13, fontFamily: 'monospace', letterSpacing: '0.06em', flexShrink: 0 }}>
             {activeItemIds.length > 0 ? 'Add item to canvas' : 'Select item'}
           </span>
 
-          {/* search */}
           <div style={{ position: 'relative', flex: 1 }}>
             <svg
-              style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#555' }}
+              style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--th-tx-vmut)' }}
               width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
             >
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -113,12 +124,12 @@ export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props
               placeholder="Search…"
               style={{
                 width: '100%', boxSizing: 'border-box',
-                background: '#0d0f14', border: '1px solid #2a2d35',
-                borderRadius: 3, color: '#c9d1d9', fontSize: 12,
+                background: 'var(--th-bg-input)', border: '1px solid var(--th-br-mid)',
+                borderRadius: 3, color: 'var(--th-tx-body)', fontSize: 12,
                 padding: '5px 8px 5px 26px', outline: 'none',
               }}
               onFocus={e => (e.currentTarget.style.borderColor = '#c9a84c')}
-              onBlur={e => (e.currentTarget.style.borderColor = '#2a2d35')}
+              onBlur={e => (e.currentTarget.style.borderColor = 'var(--th-br-mid)')}
             />
           </div>
 
@@ -126,22 +137,22 @@ export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props
             onClick={onClose}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              color: '#555', fontSize: 18, lineHeight: 1, padding: '2px 4px',
+              color: 'var(--th-tx-vmut)', fontSize: 18, lineHeight: 1, padding: '2px 4px',
               flexShrink: 0,
             }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#e2e8f0')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--th-tx-body)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-vmut)')}
           >
             ×
           </button>
         </div>
 
-        {/* ── category tabs (icon-only, Factorio style) ── */}
+        {/* ── category tabs ── */}
         {!filter && (
           <div style={{
             display: 'flex',
-            borderBottom: '1px solid #2a2d35',
-            background: '#111317',
+            borderBottom: '1px solid var(--th-br-mid)',
+            background: 'var(--th-bg-modal-h)',
             flexShrink: 0,
             overflowX: 'auto',
           }}>
@@ -153,10 +164,10 @@ export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props
                   onClick={() => setActiveGroup(g.id)}
                   title={g.name}
                   style={{
-                    background: isActive ? '#1a1c21' : 'transparent',
+                    background: isActive ? 'var(--th-bg-modal)' : 'transparent',
                     border: 'none',
                     borderBottom: isActive ? '2px solid #c9a84c' : '2px solid transparent',
-                    borderTop: isActive ? '1px solid #3a3d47' : '1px solid transparent',
+                    borderTop: isActive ? '1px solid var(--th-br-lt)' : '1px solid transparent',
                     cursor: 'pointer',
                     padding: '6px 10px',
                     display: 'flex',
@@ -168,7 +179,6 @@ export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props
                     marginTop: isActive ? -1 : 0,
                   }}
                 >
-                  {/* group icon */}
                   <div style={{ width: 32, height: 32, overflow: 'hidden', flexShrink: 0 }}>
                     <img
                       src={`/icons/groups/${g.id}.png`}
@@ -177,14 +187,13 @@ export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props
                       onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }}
                     />
                   </div>
-                  {/* item count badge */}
                   <span style={{
                     fontSize: 9,
-                    color: isActive ? '#c9a84c' : '#555',
+                    color: isActive ? '#c9a84c' : 'var(--th-tx-vmut)',
                     fontFamily: 'monospace',
                     lineHeight: 1,
                   }}>
-                    {itemsByGroup[g.id]?.length ?? 0}
+                    {poolByGroup[g.id]?.length ?? 0}
                   </span>
                 </button>
               )
@@ -199,17 +208,15 @@ export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props
           flex: 1,
         }}>
           {filteredItems !== null ? (
-            // Search results: flat grid
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
               {filteredItems.length === 0 && (
-                <span style={{ color: '#555', fontSize: 12, padding: 8 }}>No items found.</span>
+                <span style={{ color: 'var(--th-tx-vmut)', fontSize: 12, padding: 8 }}>No items found.</span>
               )}
               {filteredItems.map(item => (
                 <ItemTile key={item.id} item={item} onSelect={onSelect} isActive={activeItemIds.includes(item.id)} />
               ))}
             </div>
           ) : (
-            // Grouped by subgroup with separators
             subgroupedItems!.map((sg, i) => (
               <div key={sg.subgroup || i}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginBottom: 6 }}>
@@ -218,7 +225,7 @@ export function ItemPickerModal({ onSelect, onClose, activeItemIds = [] }: Props
                   ))}
                 </div>
                 {i < subgroupedItems!.length - 1 && (
-                  <div style={{ height: 1, background: '#1e2028', margin: '2px 0 6px' }} />
+                  <div style={{ height: 1, background: 'var(--th-bg-deep)', margin: '2px 0 6px' }} />
                 )}
               </div>
             ))
@@ -248,8 +255,8 @@ function ItemTile({ item, onSelect, isActive }: TileProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: isActive ? '#1a2a1a' : hovered ? '#2a2d38' : '#141619',
-        border: `1px solid ${isActive ? '#22c55e' : hovered ? '#c9a84c' : '#2a2d35'}`,
+        background: isActive ? '#1a2a1a' : hovered ? 'var(--th-bg-hover)' : 'var(--th-bg-item)',
+        border: `1px solid ${isActive ? '#22c55e' : hovered ? '#c9a84c' : 'var(--th-br-mid)'}`,
         borderRadius: 2,
         width: 46,
         height: 46,
@@ -273,7 +280,7 @@ function ItemTile({ item, onSelect, isActive }: TileProps) {
           />
         </div>
       ) : (
-        <span style={{ fontSize: 8, color: '#555', textAlign: 'center', lineHeight: 1.2 }}>
+        <span style={{ fontSize: 8, color: 'var(--th-tx-vmut)', textAlign: 'center', lineHeight: 1.2 }}>
           {item.id.slice(0, 4).toUpperCase()}
         </span>
       )}
@@ -283,7 +290,7 @@ function ItemTile({ item, onSelect, isActive }: TileProps) {
           position: 'absolute', bottom: 1, right: 2,
           fontSize: 9, fontWeight: 700, color: '#c9a84c', lineHeight: 1,
           fontFamily: 'monospace',
-          textShadow: '0 1px 2px #000',
+          textShadow: '0 1px 2px rgba(0,0,0,0.5)',
         }}>
           {item.resultAmount}
         </span>

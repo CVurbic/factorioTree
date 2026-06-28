@@ -76,10 +76,10 @@ function TypeBadge({ bp }: { bp: Blueprint }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 3,
-      background: isBook ? '#1a1a2a' : '#1a1919',
-      border: `1px solid ${isBook ? '#a855f733' : '#2a2829'}`,
+      background: isBook ? '#1a1a2a' : 'var(--th-bg-hdr)',
+      border: `1px solid ${isBook ? '#a855f733' : 'var(--th-br-hdr)'}`,
       borderRadius: 1, padding: '1px 5px',
-      color: isBook ? '#a855f7' : '#5a5458',
+      color: isBook ? '#a855f7' : 'var(--th-tx-vmut)',
       fontSize: 9, fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
       letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0,
     }}>
@@ -90,9 +90,9 @@ function TypeBadge({ bp }: { bp: Blueprint }) {
 
 function PostingAs({ username, onClear }: { username: string; onClear: () => void }) {
   return (
-    <div style={{ fontSize: 9, color: '#5a5458', fontFamily: 'monospace', marginBottom: 10 }}>
+    <div style={{ fontSize: 9, color: 'var(--th-tx-vmut)', fontFamily: 'monospace', marginBottom: 10 }}>
       Posting as{' '}
-      <span style={{ color: '#A19E9A', fontWeight: 700 }}>{username}</span>
+      <span style={{ color: 'var(--th-tx-sec)', fontWeight: 700 }}>{username}</span>
       {' · '}
       <span
         style={{ color: '#FF9F1C', cursor: 'pointer' }}
@@ -107,7 +107,7 @@ function PostingAs({ username, onClear }: { username: string; onClear: () => voi
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      color: '#5a5458', fontSize: 9, textTransform: 'uppercase',
+      color: 'var(--th-tx-vmut)', fontSize: 9, textTransform: 'uppercase',
       letterSpacing: '0.1em', marginBottom: 4,
       fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
     }}>
@@ -312,26 +312,26 @@ export function BlueprintsPage() {
   // ── render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#1d1c1d', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--th-bg-deep)', overflow: 'hidden' }}>
 
       {/* ── topbar ── */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 16px', borderBottom: '1px solid #111',
-        background: '#222022', flexShrink: 0, flexWrap: 'wrap', rowGap: 8,
+        padding: '10px 16px', borderBottom: '1px solid var(--th-br)',
+        background: 'var(--th-bg-deep)', flexShrink: 0, flexWrap: 'wrap', rowGap: 8,
       }}>
         {pageState !== 'browse' && (
           <button
             onClick={() => setPageState('browse')}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              color: '#5a5458', fontSize: 11, padding: '3px 0',
+              color: 'var(--th-tx-vmut)', fontSize: 11, padding: '3px 0',
               fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
               letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 4,
               flexShrink: 0,
             }}
             onMouseEnter={e => (e.currentTarget.style.color = '#FF9F1C')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#5a5458')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-vmut)')}
           >
             ← Back
           </button>
@@ -354,13 +354,13 @@ export function BlueprintsPage() {
               placeholder="Search by name, item, author…"
               style={{
                 flex: 1, minWidth: 120,
-                background: '#1b1b1b', border: '1px solid #111', borderRadius: 1,
-                boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.4)',
-                color: '#FFE6C0', fontSize: 11, padding: '4px 8px', outline: 'none',
+                background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1,
+                boxShadow: 'var(--shadow-inset)',
+                color: 'var(--th-tx)', fontSize: 11, padding: '4px 8px', outline: 'none',
                 fontFamily: "'Titillium Web', sans-serif",
               }}
               onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
-              onBlur={e => (e.currentTarget.style.borderColor = '#111')}
+              onBlur={e => (e.currentTarget.style.borderColor = 'var(--th-br)')}
             />
 
             <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
@@ -371,10 +371,10 @@ export function BlueprintsPage() {
               ]).map(({ key, label }) => (
                 <button key={key} onClick={() => setSort(key)} style={{
                   padding: '3px 8px',
-                  background: sort === key ? '#1a1919' : 'none',
-                  border: `1px solid ${sort === key ? '#FF9F1C44' : '#1a1919'}`,
+                  background: sort === key ? 'var(--th-bg-hdr)' : 'none',
+                  border: `1px solid ${sort === key ? '#FF9F1C44' : 'var(--th-br-hdr)'}`,
                   borderRadius: 1, cursor: 'pointer',
-                  color: sort === key ? '#FF9F1C' : '#5a5458',
+                  color: sort === key ? '#FF9F1C' : 'var(--th-tx-vmut)',
                   fontSize: 9, fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
                   letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap',
                 }}>
@@ -404,11 +404,11 @@ export function BlueprintsPage() {
               title="Refresh"
               style={{
                 padding: '4px 8px', flexShrink: 0,
-                background: 'none', border: '1px solid #1a1919',
-                borderRadius: 1, cursor: 'pointer', color: '#5a5458', fontSize: 11,
+                background: 'none', border: '1px solid var(--th-br-hdr)',
+                borderRadius: 1, cursor: 'pointer', color: 'var(--th-tx-vmut)', fontSize: 11,
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#A19E9A')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#5a5458')}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--th-tx-sec)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-vmut)')}
             >
               ↻
             </button>
@@ -417,7 +417,7 @@ export function BlueprintsPage() {
 
         {pageState === 'share' && (
           <span style={{
-            color: '#FFE6C0', fontSize: 11, fontWeight: 700,
+            color: 'var(--th-tx)', fontSize: 11, fontWeight: 700,
             fontFamily: "'Titillium Web', sans-serif", letterSpacing: '0.08em',
           }}>
             Share a Blueprint
@@ -426,7 +426,7 @@ export function BlueprintsPage() {
 
         {pageState === 'detail' && selectedBp && (
           <span style={{
-            color: '#FFE6C0', fontSize: 11, fontWeight: 700,
+            color: 'var(--th-tx)', fontSize: 11, fontWeight: 700,
             fontFamily: "'Titillium Web', sans-serif",
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
@@ -439,7 +439,7 @@ export function BlueprintsPage() {
       {pageState === 'browse' && (
         <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
           {loading && (
-            <div style={{ color: '#5a5458', fontSize: 11, fontFamily: 'monospace', padding: 20, textAlign: 'center' }}>
+            <div style={{ color: 'var(--th-tx-vmut)', fontSize: 11, fontFamily: 'monospace', padding: 20, textAlign: 'center' }}>
               Loading…
             </div>
           )}
@@ -449,7 +449,7 @@ export function BlueprintsPage() {
             </div>
           )}
           {!loading && !fetchError && filtered.length === 0 && (
-            <div style={{ color: '#5a5458', fontSize: 11, fontFamily: 'monospace', padding: 20, textAlign: 'center' }}>
+            <div style={{ color: 'var(--th-tx-vmut)', fontSize: 11, fontFamily: 'monospace', padding: 20, textAlign: 'center' }}>
               {search ? 'No blueprints match your search.' : 'No blueprints yet — be the first to share one!'}
             </div>
           )}
@@ -480,7 +480,7 @@ export function BlueprintsPage() {
             {submitted ? (
               <div style={{ textAlign: 'center', padding: '48px 0' }}>
                 <div style={{ color: '#22c55e', fontSize: 18, marginBottom: 8 }}>✓ Shared!</div>
-                <div style={{ color: '#5a5458', fontSize: 11, fontFamily: 'monospace' }}>Returning to gallery…</div>
+                <div style={{ color: 'var(--th-tx-vmut)', fontSize: 11, fontFamily: 'monospace' }}>Returning to gallery…</div>
               </div>
             ) : (
               <>
@@ -494,13 +494,13 @@ export function BlueprintsPage() {
                     rows={5}
                     style={{
                       width: '100%', boxSizing: 'border-box',
-                      background: '#1b1b1b', border: '1px solid #111', borderRadius: 1,
-                      boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.5)',
-                      color: '#FFE6C0', fontSize: 10, padding: '7px 10px', outline: 'none',
+                      background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1,
+                      boxShadow: 'var(--shadow-inset)',
+                      color: 'var(--th-tx)', fontSize: 10, padding: '7px 10px', outline: 'none',
                       fontFamily: 'monospace', resize: 'vertical', wordBreak: 'break-all',
                     }}
                     onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
-                    onBlur={e => (e.currentTarget.style.borderColor = '#111')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--th-br)')}
                   />
                   {/* detected type badge */}
                   {formString.trim() && (
@@ -510,10 +510,10 @@ export function BlueprintsPage() {
                           <span style={{ color: '#22c55e', fontSize: 9, fontFamily: 'monospace' }}>✓ Valid</span>
                           <span style={{
                             display: 'inline-flex', alignItems: 'center',
-                            background: detectedType.type === 'blueprint_book' ? '#1a1a2a' : '#1a1919',
-                            border: `1px solid ${detectedType.type === 'blueprint_book' ? '#a855f733' : '#2a2829'}`,
+                            background: detectedType.type === 'blueprint_book' ? '#1a1a2a' : 'var(--th-bg-hdr)',
+                            border: `1px solid ${detectedType.type === 'blueprint_book' ? '#a855f733' : 'var(--th-br-hdr)'}`,
                             borderRadius: 1, padding: '1px 6px',
-                            color: detectedType.type === 'blueprint_book' ? '#a855f7' : '#5a5458',
+                            color: detectedType.type === 'blueprint_book' ? '#a855f7' : 'var(--th-tx-vmut)',
                             fontSize: 9, fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
                             letterSpacing: '0.06em', textTransform: 'uppercase',
                           }}>
@@ -523,7 +523,7 @@ export function BlueprintsPage() {
                           </span>
                         </>
                       ) : formString.trim().match(/^[0-9]/) ? (
-                        <span style={{ color: '#5a5458', fontSize: 9, fontFamily: 'monospace' }}>Detecting…</span>
+                        <span style={{ color: 'var(--th-tx-vmut)', fontSize: 9, fontFamily: 'monospace' }}>Detecting…</span>
                       ) : (
                         <span style={{ color: '#ef4444', fontSize: 9, fontFamily: 'monospace' }}>
                           Must start with a version digit (0…)
@@ -547,13 +547,13 @@ export function BlueprintsPage() {
                     maxLength={80} placeholder="e.g. Compact Science Pack Setup"
                     style={{
                       width: '100%', boxSizing: 'border-box',
-                      background: '#1b1b1b', border: '1px solid #111', borderRadius: 1,
-                      boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.5)',
-                      color: '#FFE6C0', fontSize: 12, padding: '6px 10px', outline: 'none',
+                      background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1,
+                      boxShadow: 'var(--shadow-inset)',
+                      color: 'var(--th-tx)', fontSize: 12, padding: '6px 10px', outline: 'none',
                       fontFamily: "'Titillium Web', sans-serif",
                     }}
                     onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
-                    onBlur={e => (e.currentTarget.style.borderColor = '#111')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--th-br)')}
                   />
                 </div>
 
@@ -566,13 +566,13 @@ export function BlueprintsPage() {
                     placeholder="Optional — what does this produce, any tips?"
                     style={{
                       width: '100%', boxSizing: 'border-box',
-                      background: '#1b1b1b', border: '1px solid #111', borderRadius: 1,
-                      boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.5)',
-                      color: '#FFE6C0', fontSize: 11, padding: '6px 10px', outline: 'none',
+                      background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1,
+                      boxShadow: 'var(--shadow-inset)',
+                      color: 'var(--th-tx)', fontSize: 11, padding: '6px 10px', outline: 'none',
                       fontFamily: 'monospace', resize: 'vertical',
                     }}
                     onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
-                    onBlur={e => (e.currentTarget.style.borderColor = '#111')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--th-br)')}
                   />
                 </div>
 
@@ -586,17 +586,17 @@ export function BlueprintsPage() {
                         return (
                           <div key={id} style={{
                             display: 'flex', alignItems: 'center', gap: 4,
-                            background: '#1b1b1b', border: '1px solid #111', borderRadius: 1, padding: '2px 5px',
+                            background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1, padding: '2px 5px',
                           }}>
                             <div style={{ width: 14, height: 14, overflow: 'hidden', flexShrink: 0 }}>
                               <img src={`/icons/${id}.png`} alt="" style={{ height: 14, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }} />
                             </div>
-                            <span style={{ color: '#FFE6C0', fontSize: 10, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
+                            <span style={{ color: 'var(--th-tx)', fontSize: 10, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
                             <button
                               onClick={() => setFormItemIds(prev => prev.filter(x => x !== id))}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#5a5458', fontSize: 12, padding: '0 0 0 2px', lineHeight: 1 }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--th-tx-vmut)', fontSize: 12, padding: '0 0 0 2px', lineHeight: 1 }}
                               onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                              onMouseLeave={e => (e.currentTarget.style.color = '#5a5458')}
+                              onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-vmut)')}
                             >×</button>
                           </div>
                         )
@@ -611,18 +611,18 @@ export function BlueprintsPage() {
                     placeholder={formItemIds.length === 0 ? 'Search item name…' : 'Add another item…'}
                     style={{
                       width: '100%', boxSizing: 'border-box',
-                      background: '#1b1b1b', border: '1px solid #111', borderRadius: 1,
-                      boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.5)',
-                      color: '#FFE6C0', fontSize: 11, padding: '6px 10px', outline: 'none',
+                      background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1,
+                      boxShadow: 'var(--shadow-inset)',
+                      color: 'var(--th-tx)', fontSize: 11, padding: '6px 10px', outline: 'none',
                       fontFamily: "'Titillium Web', sans-serif",
                     }}
                     onFocusCapture={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
-                    onBlurCapture={e => (e.currentTarget.style.borderColor = '#111')}
+                    onBlurCapture={e => (e.currentTarget.style.borderColor = 'var(--th-br)')}
                   />
                   {showItemPicker && itemResults.length > 0 && (
                     <div style={{
                       position: 'absolute', left: 0, right: 0, top: '100%',
-                      background: '#252325', border: '1px solid #111', borderRadius: 1,
+                      background: 'var(--th-bg-surf)', border: '1px solid var(--th-br)', borderRadius: 1,
                       boxShadow: '0 4px 12px rgba(0,0,0,0.6)', zIndex: 200, marginTop: 2, overflow: 'hidden',
                     }}>
                       {itemResults.map(r => (
@@ -633,13 +633,13 @@ export function BlueprintsPage() {
                             setFormItemQuery(''); setShowItemPicker(false)
                           }}
                           style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 10px', cursor: 'pointer' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#2c2a2b')}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--th-bg-hover)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                         >
-                          <div style={{ width: 18, height: 18, flexShrink: 0, background: '#1b1b1b', border: '1px solid #111', overflow: 'hidden' }}>
+                          <div style={{ width: 18, height: 18, flexShrink: 0, background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', overflow: 'hidden' }}>
                             <img src={`/icons/${r.id}.png`} alt="" style={{ height: 18, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }} />
                           </div>
-                          <span style={{ color: '#FFE6C0', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{r.name}</span>
+                          <span style={{ color: 'var(--th-tx)', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{r.name}</span>
                         </div>
                       ))}
                     </div>
@@ -649,7 +649,7 @@ export function BlueprintsPage() {
                 {/* posting as */}
                 {username
                   ? <PostingAs username={username} onClear={() => { clearUsername(); setUsername(null) }} />
-                  : <div style={{ color: '#5a5458', fontSize: 9, fontFamily: 'monospace', marginBottom: 10 }}>
+                  : <div style={{ color: 'var(--th-tx-vmut)', fontSize: 9, fontFamily: 'monospace', marginBottom: 10 }}>
                       You'll choose a display name before sharing.
                     </div>
                 }
@@ -663,10 +663,10 @@ export function BlueprintsPage() {
                   disabled={submitting || formDisabled}
                   style={{
                     width: '100%', padding: '8px',
-                    background: formDisabled ? '#1b1b1b' : '#1a2a1a',
+                    background: formDisabled ? 'var(--th-bg-well)' : '#1a2a1a',
                     border: `1px solid ${formDisabled ? '#111' : '#22c55e44'}`,
                     borderRadius: 1, cursor: (submitting || formDisabled) ? 'not-allowed' : 'pointer',
-                    color: formDisabled ? '#5a5458' : '#22c55e',
+                    color: formDisabled ? 'var(--th-tx-vmut)' : '#22c55e',
                     fontSize: 12, fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
                     letterSpacing: '0.08em', textTransform: 'uppercase',
                   }}
@@ -687,18 +687,18 @@ export function BlueprintsPage() {
             {/* meta */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ color: '#FFE6C0', fontSize: 17, fontWeight: 700, fontFamily: "'Titillium Web', sans-serif", lineHeight: 1.3, marginBottom: 4 }}>
+                <div style={{ color: 'var(--th-tx)', fontSize: 17, fontWeight: 700, fontFamily: "'Titillium Web', sans-serif", lineHeight: 1.3, marginBottom: 4 }}>
                   {selectedBp.name}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ color: '#5a5458', fontSize: 10, fontFamily: 'monospace' }}>
+                  <span style={{ color: 'var(--th-tx-vmut)', fontSize: 10, fontFamily: 'monospace' }}>
                     by {selectedBp.author} · {fmtDate(selectedBp.created_at)}
                   </span>
                   <TypeBadge bp={selectedBp} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
-                <span style={{ color: '#5a5458', fontSize: 10, fontFamily: 'monospace' }}>
+                <span style={{ color: 'var(--th-tx-vmut)', fontSize: 10, fontFamily: 'monospace' }}>
                   {selectedBp.downloads} cop{selectedBp.downloads !== 1 ? 'ies' : 'y'}
                 </span>
               </div>
@@ -712,13 +712,13 @@ export function BlueprintsPage() {
                   return (
                     <div key={id} style={{
                       display: 'flex', alignItems: 'center', gap: 5,
-                      background: '#1b1b1b', border: '1px solid #111', borderRadius: 1, padding: '3px 8px',
+                      background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1, padding: '3px 8px',
                     }}>
                       <div style={{ width: 16, height: 16, overflow: 'hidden', flexShrink: 0 }}>
                         <img src={`/icons/${id}.png`} alt="" style={{ height: 16, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
                           onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }} />
                       </div>
-                      <span style={{ color: '#FFE6C0', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
+                      <span style={{ color: 'var(--th-tx)', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
                     </div>
                   )
                 })}
@@ -727,7 +727,7 @@ export function BlueprintsPage() {
 
             {/* description */}
             {selectedBp.description && (
-              <div style={{ color: '#A19E9A', fontSize: 12, lineHeight: 1.65, fontFamily: 'monospace', background: '#1a1919', padding: '10px 12px', borderRadius: 1, border: '1px solid #111' }}>
+              <div style={{ color: 'var(--th-tx-sec)', fontSize: 12, lineHeight: 1.65, fontFamily: 'monospace', background: 'var(--th-bg-hdr)', padding: '10px 12px', borderRadius: 1, border: '1px solid var(--th-br)' }}>
                 {selectedBp.description}
               </div>
             )}
@@ -741,15 +741,15 @@ export function BlueprintsPage() {
                 onClick={() => handleCopy(selectedBp)}
                 style={{
                   flex: 1, padding: '8px 12px',
-                  background: copied === selectedBp.id ? '#1a2a1a' : '#1b1b1b',
+                  background: copied === selectedBp.id ? '#1a2a1a' : 'var(--th-bg-well)',
                   border: `1px solid ${copied === selectedBp.id ? '#22c55e44' : '#111'}`,
                   borderRadius: 1, cursor: 'pointer',
-                  color: copied === selectedBp.id ? '#22c55e' : '#A19E9A',
+                  color: copied === selectedBp.id ? '#22c55e' : 'var(--th-tx-sec)',
                   fontSize: 12, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600,
                   transition: 'all 0.15s',
                 }}
-                onMouseEnter={e => { if (copied !== selectedBp.id) e.currentTarget.style.color = '#FFE6C0' }}
-                onMouseLeave={e => { if (copied !== selectedBp.id) e.currentTarget.style.color = '#A19E9A' }}
+                onMouseEnter={e => { if (copied !== selectedBp.id) e.currentTarget.style.color = 'var(--th-tx)' }}
+                onMouseLeave={e => { if (copied !== selectedBp.id) e.currentTarget.style.color = 'var(--th-tx-sec)' }}
               >
                 {copied === selectedBp.id ? '✓ Copied!' : '⧉ Copy Blueprint String'}
               </button>
@@ -758,14 +758,14 @@ export function BlueprintsPage() {
                 title={voted.has(selectedBp.id) ? 'Already upvoted' : 'Upvote'}
                 style={{
                   flexShrink: 0, padding: '8px 16px',
-                  background: voted.has(selectedBp.id) ? '#1a2a1a' : '#1b1b1b',
+                  background: voted.has(selectedBp.id) ? '#1a2a1a' : 'var(--th-bg-well)',
                   border: `1px solid ${voted.has(selectedBp.id) ? '#22c55e44' : '#111'}`,
                   borderRadius: 1, cursor: voted.has(selectedBp.id) ? 'default' : 'pointer',
-                  color: voted.has(selectedBp.id) ? '#22c55e' : '#5a5458',
+                  color: voted.has(selectedBp.id) ? '#22c55e' : 'var(--th-tx-vmut)',
                   fontSize: 12, display: 'flex', alignItems: 'center', gap: 6,
                 }}
                 onMouseEnter={e => { if (!voted.has(selectedBp.id)) e.currentTarget.style.color = '#22c55e' }}
-                onMouseLeave={e => { if (!voted.has(selectedBp.id)) e.currentTarget.style.color = '#5a5458' }}
+                onMouseLeave={e => { if (!voted.has(selectedBp.id)) e.currentTarget.style.color = 'var(--th-tx-vmut)' }}
               >
                 ▲ <span style={{ fontFamily: 'monospace' }}>{selectedBp.upvotes}</span>
               </button>
@@ -774,20 +774,20 @@ export function BlueprintsPage() {
             {/* ── comments ── */}
             <div>
               <div style={{
-                color: '#5a5458', fontSize: 9, textTransform: 'uppercase',
+                color: 'var(--th-tx-vmut)', fontSize: 9, textTransform: 'uppercase',
                 letterSpacing: '0.12em', fontFamily: "'Titillium Web', sans-serif",
                 fontWeight: 700, marginBottom: 10, paddingBottom: 6,
-                borderBottom: '1px solid #1a1919',
+                borderBottom: '1px solid var(--th-br-hdr)',
               }}>
                 Comments {comments.length > 0 && `· ${comments.length}`}
               </div>
 
               {commentsLoading && (
-                <div style={{ color: '#5a5458', fontSize: 10, fontFamily: 'monospace', marginBottom: 10 }}>Loading…</div>
+                <div style={{ color: 'var(--th-tx-vmut)', fontSize: 10, fontFamily: 'monospace', marginBottom: 10 }}>Loading…</div>
               )}
 
               {!commentsLoading && comments.length === 0 && (
-                <div style={{ color: '#3a3638', fontSize: 10, fontFamily: 'monospace', marginBottom: 12 }}>
+                <div style={{ color: 'var(--th-tx-faint)', fontSize: 10, fontFamily: 'monospace', marginBottom: 12 }}>
                   No comments yet — share an improvement idea!
                 </div>
               )}
@@ -795,18 +795,18 @@ export function BlueprintsPage() {
               {comments.map(c => (
                 <div key={c.id} style={{
                   padding: '8px 10px', marginBottom: 6,
-                  background: '#1a1919', border: '1px solid #111',
+                  background: 'var(--th-bg-hdr)', border: '1px solid var(--th-br)',
                   borderRadius: 1,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <span style={{ color: '#A19E9A', fontSize: 11, fontWeight: 700, fontFamily: "'Titillium Web', sans-serif" }}>
+                    <span style={{ color: 'var(--th-tx-sec)', fontSize: 11, fontWeight: 700, fontFamily: "'Titillium Web', sans-serif" }}>
                       {c.author}
                     </span>
-                    <span style={{ color: '#3a3638', fontSize: 9, fontFamily: 'monospace' }}>
+                    <span style={{ color: 'var(--th-tx-faint)', fontSize: 9, fontFamily: 'monospace' }}>
                       {fmtDate(c.created_at)}
                     </span>
                   </div>
-                  <div style={{ color: '#A19E9A', fontSize: 11, fontFamily: 'monospace', lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  <div style={{ color: 'var(--th-tx-sec)', fontSize: 11, fontFamily: 'monospace', lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                     {c.body}
                   </div>
                 </div>
@@ -823,13 +823,13 @@ export function BlueprintsPage() {
                   rows={3}
                   style={{
                     width: '100%', boxSizing: 'border-box',
-                    background: '#1b1b1b', border: '1px solid #111', borderRadius: 1,
-                    boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.5)',
-                    color: '#FFE6C0', fontSize: 11, padding: '7px 10px', outline: 'none',
+                    background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1,
+                    boxShadow: 'var(--shadow-inset)',
+                    color: 'var(--th-tx)', fontSize: 11, padding: '7px 10px', outline: 'none',
                     fontFamily: 'monospace', resize: 'vertical', marginBottom: 6,
                   }}
                   onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
-                  onBlur={e => (e.currentTarget.style.borderColor = '#111')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--th-br)')}
                 />
                 {commentError && (
                   <div style={{ color: '#ef4444', fontSize: 10, marginBottom: 6, fontFamily: 'monospace' }}>{commentError}</div>
@@ -839,11 +839,11 @@ export function BlueprintsPage() {
                   disabled={commentSubmitting || !commentBody.trim()}
                   style={{
                     padding: '6px 16px',
-                    background: !commentBody.trim() ? '#1b1b1b' : '#1a1a2a',
+                    background: !commentBody.trim() ? 'var(--th-bg-well)' : '#1a1a2a',
                     border: `1px solid ${!commentBody.trim() ? '#111' : '#FF9F1C44'}`,
                     borderRadius: 1,
                     cursor: (commentSubmitting || !commentBody.trim()) ? 'not-allowed' : 'pointer',
-                    color: !commentBody.trim() ? '#5a5458' : '#FF9F1C',
+                    color: !commentBody.trim() ? 'var(--th-tx-vmut)' : '#FF9F1C',
                     fontSize: 10, fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
                     letterSpacing: '0.08em', textTransform: 'uppercase',
                   }}
@@ -881,21 +881,21 @@ function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote }: {
     <div
       onClick={onOpen}
       style={{
-        background: '#272526', border: '1px solid #1e1c1e',
+        background: 'var(--th-bg-surf)', border: '1px solid var(--th-br-sep)',
         borderTop: '2px solid #FF9F1C22', borderRadius: 2,
         boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.4)',
         cursor: 'pointer', display: 'flex', flexDirection: 'column', overflow: 'hidden',
         transition: 'border-color 0.15s',
       }}
       onMouseEnter={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
-      onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e1c1e')}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--th-br-sep)')}
     >
       {/* card header */}
       <div style={{ padding: '10px 12px 8px', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
         {/* item icons */}
         <div style={{ display: 'flex', gap: 2, flexShrink: 0, flexWrap: 'wrap', maxWidth: 50 }}>
           {bp.item_ids.slice(0, 4).map(id => (
-            <div key={id} style={{ width: 20, height: 20, background: '#1b1b1b', border: '1px solid #111', overflow: 'hidden', boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.5)' }}>
+            <div key={id} style={{ width: 20, height: 20, background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', overflow: 'hidden', boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.5)' }}>
               <img
                 src={`/icons/${id}.png`} alt=""
                 title={recipes.find(r => r.id === id)?.name ?? id}
@@ -909,7 +909,7 @@ function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote }: {
         {/* name + meta */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            color: '#FFE6C0', fontSize: 12, fontWeight: 700,
+            color: 'var(--th-tx)', fontSize: 12, fontWeight: 700,
             fontFamily: "'Titillium Web', sans-serif",
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             marginBottom: 3,
@@ -917,7 +917,7 @@ function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote }: {
             {bp.name}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-            <span style={{ color: '#5a5458', fontSize: 9, fontFamily: 'monospace' }}>
+            <span style={{ color: 'var(--th-tx-vmut)', fontSize: 9, fontFamily: 'monospace' }}>
               {bp.author} · {fmtDate(bp.created_at)}
             </span>
             <TypeBadge bp={bp} />
@@ -933,12 +933,12 @@ function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote }: {
             background: voted.has(bp.id) ? '#1a2a1a' : 'none',
             border: `1px solid ${voted.has(bp.id) ? '#22c55e44' : 'transparent'}`,
             borderRadius: 1, cursor: voted.has(bp.id) ? 'default' : 'pointer',
-            color: voted.has(bp.id) ? '#22c55e' : '#5a5458',
+            color: voted.has(bp.id) ? '#22c55e' : 'var(--th-tx-vmut)',
             fontSize: 9, padding: '3px 5px',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, lineHeight: 1,
           }}
           onMouseEnter={e => { if (!voted.has(bp.id)) e.currentTarget.style.color = '#22c55e' }}
-          onMouseLeave={e => { if (!voted.has(bp.id)) e.currentTarget.style.color = '#5a5458' }}
+          onMouseLeave={e => { if (!voted.has(bp.id)) e.currentTarget.style.color = 'var(--th-tx-vmut)' }}
         >
           <span>▲</span>
           <span style={{ fontFamily: 'monospace' }}>{bp.upvotes}</span>
@@ -948,7 +948,7 @@ function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote }: {
       {/* description */}
       {bp.description && (
         <div style={{
-          color: '#6b6060', fontSize: 10, lineHeight: 1.45, fontFamily: 'monospace',
+          color: 'var(--th-tx-mut)', fontSize: 10, lineHeight: 1.45, fontFamily: 'monospace',
           padding: '0 12px 8px',
           overflow: 'hidden', display: '-webkit-box',
           WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
@@ -968,16 +968,16 @@ function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote }: {
           onClick={e => { e.stopPropagation(); onCopy(bp) }}
           style={{
             width: '100%', padding: '5px 8px',
-            background: copied === bp.id ? '#1a2a1a' : '#1b1b1b',
+            background: copied === bp.id ? '#1a2a1a' : 'var(--th-bg-well)',
             border: `1px solid ${copied === bp.id ? '#22c55e44' : '#111'}`,
             boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.04)',
             borderRadius: 1, cursor: 'pointer',
-            color: copied === bp.id ? '#22c55e' : '#A19E9A',
+            color: copied === bp.id ? '#22c55e' : 'var(--th-tx-sec)',
             fontSize: 10, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600,
             letterSpacing: '0.04em', transition: 'all 0.15s',
           }}
-          onMouseEnter={e => { if (copied !== bp.id) e.currentTarget.style.color = '#FFE6C0' }}
-          onMouseLeave={e => { if (copied !== bp.id) e.currentTarget.style.color = '#A19E9A' }}
+          onMouseEnter={e => { if (copied !== bp.id) e.currentTarget.style.color = 'var(--th-tx)' }}
+          onMouseLeave={e => { if (copied !== bp.id) e.currentTarget.style.color = 'var(--th-tx-sec)' }}
         >
           {copied === bp.id ? '✓ Copied!' : '⧉ Copy String'}
         </button>

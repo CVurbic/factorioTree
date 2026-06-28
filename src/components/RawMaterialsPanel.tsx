@@ -8,13 +8,6 @@ interface Props {
   side?: 'left' | 'right'
 }
 
-const PANEL_STYLE = {
-  background: '#272526',
-  border: '1px solid #111',
-  boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.08), inset -1px -1px 0 rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.5)',
-  borderRadius: 2,
-}
-
 export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
   const [open, setOpen] = useState(() => window.innerWidth >= 640)
   const [imgFailed, setImgFailed] = useState<Record<string, boolean>>({})
@@ -54,7 +47,10 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
       top: 12,
       ...(side === 'left' ? { left: 12 } : { right: 12 }),
       width: open ? width : 38,
-      ...PANEL_STYLE,
+      background: 'var(--th-bg-surf)',
+      border: '1px solid var(--th-br)',
+      boxShadow: 'var(--shadow-outset)',
+      borderRadius: 2,
       overflow: 'hidden',
       zIndex: 100,
       transition: resizing ? 'none' : 'width 0.2s',
@@ -67,8 +63,8 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
         justifyContent: open ? 'space-between' : 'center',
         padding: open ? '0 10px' : '0',
         height: 28,
-        borderBottom: open ? '1px solid #111' : 'none',
-        background: 'linear-gradient(180deg, #2c2a2b 0%, #252325 100%)',
+        borderBottom: open ? '1px solid var(--th-br)' : 'none',
+        background: 'linear-gradient(180deg, var(--th-grad-from) 0%, var(--th-grad-to) 100%)',
         cursor: 'pointer',
       }} onClick={() => setOpen(o => !o)}>
         {open && (
@@ -84,7 +80,7 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
           </span>
         )}
         <svg
-          width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#5a5458" strokeWidth={2}
+          width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="var(--th-tx-vmut)" strokeWidth={2}
           style={{
             transform: side === 'left'
               ? (open ? 'rotate(180deg)' : 'rotate(0deg)')
@@ -115,7 +111,7 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
       {open && (
         <div style={{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
           {items.length === 0 && (
-            <div style={{ color: '#5a5458', fontSize: 11, padding: '10px 12px', fontFamily: 'monospace' }}>None</div>
+            <div style={{ color: 'var(--th-tx-vmut)', fontSize: 11, padding: '10px 12px', fontFamily: 'monospace' }}>None</div>
           )}
           {items.map(item => (
             <div
@@ -125,15 +121,15 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
                 alignItems: 'center',
                 gap: 8,
                 padding: '5px 10px',
-                borderBottom: '1px solid #1a1919',
+                borderBottom: '1px solid var(--th-br-hdr)',
               }}
             >
               {/* icon in recessed well */}
               <div style={{
                 width: 22, height: 22, overflow: 'hidden', flexShrink: 0,
-                background: '#1b1b1b', border: '1px solid #111',
+                background: 'var(--th-bg-well)', border: '1px solid var(--th-br)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.5)',
+                boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.3)',
               }}>
                 {!imgFailed[item.id] ? (
                   <img
@@ -143,18 +139,17 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
                     onError={() => setImgFailed(prev => ({ ...prev, [item.id]: true }))}
                   />
                 ) : (
-                  <span style={{ fontSize: 7, color: '#5a5458', fontFamily: 'monospace' }}>
+                  <span style={{ fontSize: 7, color: 'var(--th-tx-vmut)', fontFamily: 'monospace' }}>
                     {item.id.slice(0, 2).toUpperCase()}
                   </span>
                 )}
               </div>
 
-              {/* name */}
               <span style={{
                 flex: 1,
                 fontSize: 11,
                 fontFamily: "'Titillium Web', sans-serif",
-                color: item.isFluid ? '#22d3ee' : '#A19E9A',
+                color: item.isFluid ? '#22d3ee' : 'var(--th-tx-sec)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -162,7 +157,6 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
                 {item.name}
               </span>
 
-              {/* amount */}
               <span style={{
                 fontSize: 11,
                 fontWeight: 700,
@@ -178,11 +172,11 @@ export function RawMaterialsPanel({ items, quantity, side = 'right' }: Props) {
           {items.length > 0 && (
             <div style={{
               padding: '5px 10px',
-              color: '#3a3638',
+              color: 'var(--th-tx-faint)',
               fontSize: 9,
               fontFamily: 'monospace',
               textAlign: 'right',
-              borderTop: '1px solid #1a1919',
+              borderTop: '1px solid var(--th-br-hdr)',
             }}>
               {items.length} material{items.length !== 1 ? 's' : ''}{quantity > 1 ? ` · ×${quantity}` : ''}
             </div>

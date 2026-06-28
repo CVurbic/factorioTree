@@ -1,15 +1,92 @@
 @import "tailwindcss";
 
 :root {
-  --canvas-bg: #242324;
-  --panel-bg: #313031;
-  --panel-inset: #1b1b1b;
-  --accent-gold: #FF9F1C;
-  --text-prime: #FFE6C0;
-  --text-dim: #A19E9A;
-  --border-dark: #111111;
+  /* ── dark theme (default) ── */
+  --th-bg:         #242324;
+  --th-bg-hdr:     #1a1919;
+  --th-bg-surf:    #272526;
+  --th-bg-deep:    #222022;
+  --th-bg-well:    #1b1b1b;
+  --th-bg-item:    #141619;
+  --th-bg-modal:   #1a1c21;
+  --th-bg-modal-h: #111317;
+  --th-bg-hover:   #2a2d38;
+  --th-bg-rf:      #161b22;
+  --th-bg-input:   #0d0f14;
+
+  --th-br:         #111111;
+  --th-br-hdr:     #1a1919;
+  --th-br-mid:     #2a2d35;
+  --th-br-lt:      #3a3d47;
+  --th-br-rf:      #30363d;
+  --th-br-sep:     #1e1c1e;
+
+  --th-tx:         #FFE6C0;
+  --th-tx-sec:     #A19E9A;
+  --th-tx-mut:     #6b6060;
+  --th-tx-vmut:    #5a5458;
+  --th-tx-faint:   #3a3638;
+  --th-tx-body:    #c9d1d9;
+
+  --th-grad-from:  #2c2a2b;
+  --th-grad-to:    #252325;
+
+  --th-dot:        #2e2c2e;
+  --th-mm-mask:    rgba(0,0,0,0.65);
+
+  /* existing vars (kept for CSS class usage) */
+  --canvas-bg:     #242324;
+  --panel-bg:      #313031;
+  --panel-inset:   #1b1b1b;
+  --accent-gold:   #FF9F1C;
+  --text-prime:    #FFE6C0;
+  --text-dim:      #A19E9A;
+  --border-dark:   #111111;
   --shadow-outset: inset 1px 1px 0px rgba(255,255,255,0.10), inset -1px -1px 0px rgba(0,0,0,0.40), 0px 3px 8px rgba(0,0,0,0.5);
-  --shadow-inset: inset -1px -1px 0px rgba(255,255,255,0.04), inset 2px 2px 5px rgba(0,0,0,0.6);
+  --shadow-inset:  inset -1px -1px 0px rgba(255,255,255,0.04), inset 2px 2px 5px rgba(0,0,0,0.6);
+}
+
+[data-theme="light"] {
+  --th-bg:         #e8e4dc;
+  --th-bg-hdr:     #d5d1c8;
+  --th-bg-surf:    #f0ece4;
+  --th-bg-deep:    #e8e4db;
+  --th-bg-well:    #dddad2;
+  --th-bg-item:    #f5f2eb;
+  --th-bg-modal:   #faf7f0;
+  --th-bg-modal-h: #eeeae2;
+  --th-bg-hover:   #e4e0d8;
+  --th-bg-rf:      #f0ece4;
+  --th-bg-input:   #e8e4dc;
+
+  --th-br:         #b5b0a8;
+  --th-br-hdr:     #c8c4bc;
+  --th-br-mid:     #d0ccc4;
+  --th-br-lt:      #d8d4cc;
+  --th-br-rf:      #c0bbb4;
+  --th-br-sep:     #cac6be;
+
+  --th-tx:         #1a1410;
+  --th-tx-sec:     #5a5450;
+  --th-tx-mut:     #8a8074;
+  --th-tx-vmut:    #9a9590;
+  --th-tx-faint:   #b0aba5;
+  --th-tx-body:    #2a2520;
+
+  --th-grad-from:  #d5d1c8;
+  --th-grad-to:    #ccc8c0;
+
+  --th-dot:        #c8c4bc;
+  --th-mm-mask:    rgba(0,0,0,0.20);
+
+  --canvas-bg:     #e8e4dc;
+  --panel-bg:      #e8e4db;
+  --panel-inset:   #dddad2;
+  --text-prime:    #1a1410;
+  --text-dim:      #5a5450;
+  --border-dark:   #b5b0a8;
+  --shadow-outset: inset 1px 1px 0px rgba(255,255,255,0.60), inset -1px -1px 0px rgba(0,0,0,0.10), 0px 3px 8px rgba(0,0,0,0.15);
+  --shadow-inset:  inset -1px -1px 0px rgba(255,255,255,0.5), inset 2px 2px 5px rgba(0,0,0,0.12);
 }
 
 * {
@@ -19,7 +96,7 @@
 }
 
 body {
-  background: var(--canvas-bg);
+  background: var(--th-bg);
   font-family: 'Titillium Web', 'Inter', sans-serif;
 }
 
@@ -31,7 +108,11 @@ body {
 
 /* ── React Flow canvas ── */
 .react-flow__background {
-  background-color: var(--canvas-bg) !important;
+  background-color: var(--th-bg) !important;
+}
+
+.react-flow__background pattern circle {
+  fill: var(--th-dot) !important;
 }
 
 .react-flow__controls {
@@ -44,14 +125,14 @@ body {
 
 .react-flow__controls-button {
   background: var(--panel-bg);
-  border-bottom: 1px solid #1a1919;
+  border-bottom: 1px solid var(--th-br-hdr);
   fill: var(--text-dim);
   width: 28px;
   height: 28px;
 }
 
 .react-flow__controls-button:hover {
-  background: #3a3839;
+  background: var(--th-bg-hover);
   fill: var(--text-prime);
 }
 
@@ -76,7 +157,7 @@ body {
 }
 
 .react-flow__minimap-mask {
-  fill: rgba(0,0,0,0.7);
+  fill: var(--th-mm-mask);
 }
 
 .react-flow__minimap-node {

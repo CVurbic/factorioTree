@@ -28,6 +28,7 @@ import { ConveyorEdge } from './components/ConveyorEdge'
 import { ItemPickerModal } from './components/ItemPickerModal'
 import { RawMaterialsPanel } from './components/RawMaterialsPanel'
 import { BlueprintsPage } from './components/BlueprintsPage'
+import { PlanetTreePage } from './components/PlanetTreePage'
 import { Legend } from './components/Legend'
 
 const nodeTypes: NodeTypes = { factorioNode: FactorioNode, treeFrame: TreeFrame }
@@ -161,7 +162,7 @@ function FlowCanvas({ nodes, edges, activeKey, onNodeDoubleClick, onRemoveTree, 
         minZoom={0.05}
         maxZoom={3}
       >
-        <Background variant={BackgroundVariant.Dots} color="#2e2c2e" gap={24} size={1.5} />
+        <Background variant={BackgroundVariant.Dots} color="var(--th-dot)" gap={24} size={1.5} />
         <Controls showInteractive={false} />
         {!isMobile && (
           <MiniMap
@@ -173,8 +174,8 @@ function FlowCanvas({ nodes, edges, activeKey, onNodeDoubleClick, onRemoveTree, 
               }
               return colors[(node.data as FactorioNodeData)?.group] ?? '#4b5563'
             }}
-            maskColor="rgba(0,0,0,0.65)"
-            style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 4 }}
+            maskColor="var(--th-mm-mask)"
+            style={{ background: 'var(--th-bg-rf)', border: '1px solid var(--th-br-rf)', borderRadius: 4 }}
             pannable zoomable
           />
         )}
@@ -185,12 +186,12 @@ function FlowCanvas({ nodes, edges, activeKey, onNodeDoubleClick, onRemoveTree, 
               onClick={handleExport}
               title="Export as PNG"
               style={{
-                background: '#161b22', border: '1px solid #30363d',
-                borderRadius: 4, color: '#6b7280', width: 28, height: 28,
+                background: 'var(--th-bg-rf)', border: '1px solid var(--th-br-rf)',
+                borderRadius: 4, color: 'var(--th-tx-mut)', width: 28, height: 28,
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#c9d1d9'; e.currentTarget.style.borderColor = '#4a90d9' }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#30363d' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--th-tx-body)'; e.currentTarget.style.borderColor = '#4a90d9' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--th-tx-mut)'; e.currentTarget.style.borderColor = 'var(--th-br-rf)' }}
             >
               <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -217,7 +218,16 @@ function useMobile() {
 
 export default function App() {
   const isMobile = useMobile()
-  const [view, setView] = useState<'tree' | 'blueprints'>('tree')
+  const [view, setView] = useState<'tree' | 'blueprints' | 'planet-tree'>('tree')
+
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try { return (localStorage.getItem('ft-theme') ?? 'dark') as 'dark' | 'light' }
+    catch { return 'dark' }
+  })
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('ft-theme', theme)
+  }, [theme])
 
   // Active items: list of item IDs on canvas (may be empty → triggers picker)
   const [activeItemIds, setActiveItemIds] = useState<string[]>(() =>
@@ -397,13 +407,13 @@ export default function App() {
 
   return (
     <ReactFlowProvider>
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: '#242324' }}>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--th-bg)' }}>
 
         {/* ── header ── */}
         <header style={{
-          background: '#1a1919',
-          borderBottom: '2px solid #111',
-          boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.5)',
+          background: 'var(--th-bg-hdr)',
+          borderBottom: '2px solid var(--th-br)',
+          boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.3)',
           flexShrink: 0,
         }}>
           {isMobile ? (
@@ -422,12 +432,12 @@ export default function App() {
                   Crafting Tree
                 </div>
                 <button
-                  onClick={() => setView(v => v === 'tree' ? 'blueprints' : 'tree')}
+                  onClick={() => setView(v => v === 'blueprints' ? 'tree' : 'blueprints')}
                   style={{
                     background: view === 'blueprints' ? '#1a1a2a' : 'none',
-                    border: `1px solid ${view === 'blueprints' ? '#a855f744' : '#1a1919'}`,
+                    border: `1px solid ${view === 'blueprints' ? '#a855f744' : 'var(--th-br-hdr)'}`,
                     borderRadius: 1, cursor: 'pointer',
-                    color: view === 'blueprints' ? '#a855f7' : '#5a5458',
+                    color: view === 'blueprints' ? '#a855f7' : 'var(--th-tx-vmut)',
                     fontSize: 9, padding: '3px 8px', flexShrink: 0,
                     fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
                     letterSpacing: '0.08em', textTransform: 'uppercase',
@@ -435,19 +445,43 @@ export default function App() {
                 >
                   Blueprints
                 </button>
+                <button
+                  onClick={() => setView(v => v === 'planet-tree' ? 'tree' : 'planet-tree')}
+                  style={{
+                    background: view === 'planet-tree' ? '#1a2a1a' : 'none',
+                    border: `1px solid ${view === 'planet-tree' ? '#22c55e44' : 'var(--th-br-hdr)'}`,
+                    borderRadius: 1, cursor: 'pointer',
+                    color: view === 'planet-tree' ? '#22c55e' : 'var(--th-tx-vmut)',
+                    fontSize: 9, padding: '3px 8px', flexShrink: 0,
+                    fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                  }}
+                >
+                  Planets
+                </button>
+                <button
+                  onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+                  title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--th-tx-vmut)', fontSize: 14, padding: '2px 4px', flexShrink: 0,
+                  }}
+                >
+                  {theme === 'dark' ? '☀' : '☾'}
+                </button>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: '#5a5458', fontSize: 10, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Qty</span>
+                  <span style={{ color: 'var(--th-tx-vmut)', fontSize: 10, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Qty</span>
                   <input
                     type="number" min={1} max={100000} value={quantity}
                     onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 1) setQuantity(v) }}
                     title="Desired output quantity"
                     style={{
-                      width: 56, background: '#1b1b1b', border: '1px solid #111',
-                      boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.6)', borderRadius: 1,
-                      color: '#FFE6C0', fontSize: 12, padding: '3px 6px', outline: 'none', fontFamily: 'monospace',
+                      width: 56, background: 'var(--th-bg-well)', border: '1px solid var(--th-br)',
+                      boxShadow: 'var(--shadow-inset)', borderRadius: 1,
+                      color: 'var(--th-tx)', fontSize: 12, padding: '3px 6px', outline: 'none', fontFamily: 'monospace',
                     }}
                     onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
-                    onBlur={e => (e.currentTarget.style.borderColor = '#111')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--th-br)')}
                   />
                 </div>
               </div>
@@ -466,9 +500,9 @@ export default function App() {
                   onClick={() => setModalOpen(true)}
                   title="Add item to canvas"
                   style={{
-                    background: '#272526', border: '1px solid #111',
-                    boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), inset -1px -1px 0 rgba(0,0,0,0.3)',
-                    borderRadius: 1, color: '#A19E9A', fontSize: 11,
+                    background: 'var(--th-bg-surf)', border: '1px solid var(--th-br)',
+                    boxShadow: 'var(--shadow-outset)',
+                    borderRadius: 1, color: 'var(--th-tx-sec)', fontSize: 11,
                     padding: '4px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center',
                     gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
                     fontFamily: "'Titillium Web', sans-serif", fontWeight: 600,
@@ -502,16 +536,16 @@ export default function App() {
                   onClick={() => setModalOpen(true)}
                   title="Add item to canvas"
                   style={{
-                    background: '#272526', border: '1px solid #111',
-                    boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), inset -1px -1px 0 rgba(0,0,0,0.3)',
-                    borderRadius: 1, color: '#A19E9A', fontSize: 11,
+                    background: 'var(--th-bg-surf)', border: '1px solid var(--th-br)',
+                    boxShadow: 'var(--shadow-outset)',
+                    borderRadius: 1, color: 'var(--th-tx-sec)', fontSize: 11,
                     padding: '4px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center',
                     gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
                     fontFamily: "'Titillium Web', sans-serif", fontWeight: 600,
                     letterSpacing: '0.06em', textTransform: 'uppercase',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.color = '#FF9F1C'; e.currentTarget.style.borderColor = '#FF9F1C55' }}
-                  onMouseLeave={e => { e.currentTarget.style.color = '#A19E9A'; e.currentTarget.style.borderColor = '#111' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--th-tx-sec)'; e.currentTarget.style.borderColor = 'var(--th-br)' }}
                 >
                   <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                     <path d="M12 5v14M5 12h14" />
@@ -532,7 +566,7 @@ export default function App() {
                 </div>
                 <div style={{
                   fontFamily: "'Titillium Web', sans-serif", fontSize: 8,
-                  color: '#5a5458', letterSpacing: '0.28em', textTransform: 'uppercase', marginTop: 3,
+                  color: 'var(--th-tx-vmut)', letterSpacing: '0.28em', textTransform: 'uppercase', marginTop: 3,
                 }}>
                   Industrial Flow Planner
                 </div>
@@ -541,40 +575,69 @@ export default function App() {
               {/* right: quantity + stats + blueprints toggle */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                  <span style={{ color: '#5a5458', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Qty</span>
+                  <span style={{ color: 'var(--th-tx-vmut)', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Qty</span>
                   <input
                     type="number" min={1} max={100000} value={quantity}
                     onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 1) setQuantity(v) }}
                     title="Desired output quantity"
                     style={{
-                      width: 62, background: '#1b1b1b', border: '1px solid #111',
-                      boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.6)', borderRadius: 1,
-                      color: '#FFE6C0', fontSize: 12, padding: '3px 7px', outline: 'none', fontFamily: 'monospace',
+                      width: 62, background: 'var(--th-bg-well)', border: '1px solid var(--th-br)',
+                      boxShadow: 'var(--shadow-inset)', borderRadius: 1,
+                      color: 'var(--th-tx)', fontSize: 12, padding: '3px 7px', outline: 'none', fontFamily: 'monospace',
                     }}
                     onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
-                    onBlur={e => (e.currentTarget.style.borderColor = '#111')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--th-br)')}
                   />
                 </div>
-                <div style={{ color: '#3a3638', fontSize: 10, fontFamily: 'monospace', display: 'flex', gap: 8, flexShrink: 0 }}>
+                <div style={{ color: 'var(--th-tx-faint)', fontSize: 10, fontFamily: 'monospace', display: 'flex', gap: 8, flexShrink: 0 }}>
                   <span>{nodes.length}n</span>
                   <span>{edges.length}e</span>
                 </div>
                 <button
-                  onClick={() => setView(v => v === 'tree' ? 'blueprints' : 'tree')}
+                  onClick={() => setView(v => v === 'blueprints' ? 'tree' : 'blueprints')}
                   style={{
-                    background: view === 'blueprints' ? '#1a1a2a' : '#1b1b1b',
-                    border: `1px solid ${view === 'blueprints' ? '#a855f744' : '#111'}`,
+                    background: view === 'blueprints' ? '#1a1a2a' : 'var(--th-bg-well)',
+                    border: `1px solid ${view === 'blueprints' ? '#a855f744' : 'var(--th-br)'}`,
                     boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.04)',
                     borderRadius: 1, cursor: 'pointer',
-                    color: view === 'blueprints' ? '#a855f7' : '#5a5458',
+                    color: view === 'blueprints' ? '#a855f7' : 'var(--th-tx-vmut)',
                     fontSize: 10, padding: '4px 10px', flexShrink: 0,
                     fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
                     letterSpacing: '0.08em', textTransform: 'uppercase',
                   }}
                   onMouseEnter={e => { if (view !== 'blueprints') { e.currentTarget.style.color = '#a855f7'; e.currentTarget.style.borderColor = '#a855f744' } }}
-                  onMouseLeave={e => { if (view !== 'blueprints') { e.currentTarget.style.color = '#5a5458'; e.currentTarget.style.borderColor = '#111' } }}
+                  onMouseLeave={e => { if (view !== 'blueprints') { e.currentTarget.style.color = 'var(--th-tx-vmut)'; e.currentTarget.style.borderColor = 'var(--th-br)' } }}
                 >
                   Blueprints
+                </button>
+                <button
+                  onClick={() => setView(v => v === 'planet-tree' ? 'tree' : 'planet-tree')}
+                  style={{
+                    background: view === 'planet-tree' ? '#1a2a1a' : 'var(--th-bg-well)',
+                    border: `1px solid ${view === 'planet-tree' ? '#22c55e44' : 'var(--th-br)'}`,
+                    boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.04)',
+                    borderRadius: 1, cursor: 'pointer',
+                    color: view === 'planet-tree' ? '#22c55e' : 'var(--th-tx-vmut)',
+                    fontSize: 10, padding: '4px 10px', flexShrink: 0,
+                    fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                  }}
+                  onMouseEnter={e => { if (view !== 'planet-tree') { e.currentTarget.style.color = '#22c55e'; e.currentTarget.style.borderColor = '#22c55e44' } }}
+                  onMouseLeave={e => { if (view !== 'planet-tree') { e.currentTarget.style.color = 'var(--th-tx-vmut)'; e.currentTarget.style.borderColor = 'var(--th-br)' } }}
+                >
+                  Planets
+                </button>
+                <button
+                  onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+                  title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--th-tx-vmut)', fontSize: 16, padding: '2px 6px', flexShrink: 0,
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#FF9F1C')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-vmut)')}
+                >
+                  {theme === 'dark' ? '☀' : '☾'}
                 </button>
               </div>
             </div>
@@ -585,6 +648,8 @@ export default function App() {
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           {view === 'blueprints' ? (
             <BlueprintsPage />
+          ) : view === 'planet-tree' ? (
+            <PlanetTreePage />
           ) : (
             <>
               <FlowCanvas
@@ -621,9 +686,9 @@ function ItemChip({ itemId, name, onRemove }: { itemId: string; name: string; on
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 5,
-      background: '#272526',
-      border: '1px solid #111',
-      boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.07), inset -1px -1px 0 rgba(0,0,0,0.35)',
+      background: 'var(--th-bg-surf)',
+      border: '1px solid var(--th-br)',
+      boxShadow: 'var(--shadow-outset)',
       borderRadius: 1,
       padding: '3px 6px 3px 5px',
       flexShrink: 0,
@@ -637,17 +702,17 @@ function ItemChip({ itemId, name, onRemove }: { itemId: string; name: string; on
           />
         </div>
       )}
-      <span style={{ color: '#FFE6C0', fontSize: 11, whiteSpace: 'nowrap', fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
+      <span style={{ color: 'var(--th-tx)', fontSize: 11, whiteSpace: 'nowrap', fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
       {onRemove && (
         <button
           onClick={onRemove}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: '#5a5458', fontSize: 14, lineHeight: 1,
+            color: 'var(--th-tx-vmut)', fontSize: 14, lineHeight: 1,
             padding: '0 0 0 2px', display: 'flex', alignItems: 'center',
           }}
           onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-          onMouseLeave={e => (e.currentTarget.style.color = '#5a5458')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-vmut)')}
         >
           ×
         </button>

@@ -16,21 +16,21 @@ export function TreeFrame({ data, selected }: NodeProps<TreeFrameNodeType>) {
     <div style={{
       width: '100%',
       height: '100%',
-      background: '#1d1c1d',
-      border: `2px solid ${selected ? '#FF9F1C88' : '#111111'}`,
+      background: 'var(--th-bg-deep)',
+      border: `2px solid ${selected ? '#FF9F1C88' : 'var(--th-br)'}`,
       borderRadius: 2,
       cursor: 'grab',
       position: 'relative',
       boxShadow: selected
         ? 'inset 1px 1px 0 rgba(255,255,255,0.10), inset -1px -1px 0 rgba(0,0,0,0.45), 0 0 12px rgba(255,159,28,0.15)'
-        : 'inset 1px 1px 0 rgba(255,255,255,0.07), inset -1px -1px 0 rgba(0,0,0,0.4)',
+        : 'inset 1px 1px 0 rgba(255,255,255,0.07), inset -1px -1px 0 rgba(0,0,0,0.2)',
     }}>
 
       <NodeResizer
         isVisible={selected}
         minWidth={data.initialWidth ?? 200}
         minHeight={data.initialHeight ?? 80}
-        handleStyle={{ width: 8, height: 8, background: '#FF9F1C', border: '1px solid #1d1c1d', borderRadius: 2 }}
+        handleStyle={{ width: 8, height: 8, background: '#FF9F1C', border: '1px solid var(--th-bg-deep)', borderRadius: 2 }}
         lineStyle={{ border: '1px dashed #FF9F1C66' }}
       />
 
@@ -39,8 +39,8 @@ export function TreeFrame({ data, selected }: NodeProps<TreeFrameNodeType>) {
         position: 'absolute',
         top: 0, left: 0, right: 0,
         height: 28,
-        background: 'linear-gradient(180deg, #2c2a2b 0%, #252325 100%)',
-        borderBottom: '1px solid #111',
+        background: 'linear-gradient(180deg, var(--th-grad-from) 0%, var(--th-grad-to) 100%)',
+        borderBottom: '1px solid var(--th-br)',
         display: 'flex',
         alignItems: 'center',
         gap: 7,
@@ -75,7 +75,7 @@ export function TreeFrame({ data, selected }: NodeProps<TreeFrameNodeType>) {
         </span>
 
         {/* drag grip */}
-        <svg style={{ marginLeft: 4, opacity: 0.25, flexShrink: 0 }} width={12} height={10} viewBox="0 0 12 10" fill="#FFE6C0">
+        <svg style={{ marginLeft: 4, opacity: 0.25, flexShrink: 0 }} width={12} height={10} viewBox="0 0 12 10" fill="var(--th-tx)">
           <circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/><circle cx="10" cy="2" r="1.2"/>
           <circle cx="2" cy="7" r="1.2"/><circle cx="6" cy="7" r="1.2"/><circle cx="10" cy="7" r="1.2"/>
         </svg>
@@ -89,12 +89,12 @@ export function TreeFrame({ data, selected }: NodeProps<TreeFrameNodeType>) {
         style={{
           position: 'absolute', top: 4, right: 6, zIndex: 10,
           background: 'none', border: 'none', cursor: 'pointer',
-          color: '#5a5458', fontSize: 16, lineHeight: 1,
+          color: 'var(--th-tx-vmut)', fontSize: 16, lineHeight: 1,
           padding: '1px 4px', display: 'flex', alignItems: 'center',
           fontFamily: 'monospace',
         }}
         onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-        onMouseLeave={e => (e.currentTarget.style.color = '#5a5458')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-vmut)')}
       >
         ×
       </button>

@@ -45,7 +45,6 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
     return () => window.removeEventListener('keydown', handler)
   }, [hovered, showUsage])
 
-  // Close touch tooltip when tapping outside
   useEffect(() => {
     if (!touchTooltip) return
     const handler = () => setTouchTooltip(false)
@@ -68,17 +67,17 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
         position: 'relative',
         width: 160,
         height: 64,
-        background: data.isRaw ? '#222022' : '#272526',
-        border: `1px solid ${data.isRaw ? '#1a1819' : '#1e1c1e'}`,
-        borderTop: `2px solid ${data.isRaw ? '#333031' : accent + '99'}`,
+        background: data.isRaw ? 'var(--th-bg-deep)' : 'var(--th-bg-surf)',
+        border: `1px solid var(--th-br-sep)`,
+        borderTop: `2px solid ${data.isRaw ? 'var(--th-br-sep)' : accent + '99'}`,
         borderRadius: 1,
         display: 'flex',
         alignItems: 'center',
         gap: 0,
         userSelect: 'none',
         boxShadow: data.isRaw
-          ? 'inset 1px 1px 0 rgba(255,255,255,0.04), inset -1px -1px 0 rgba(0,0,0,0.35)'
-          : 'inset 1px 1px 0 rgba(255,255,255,0.08), inset -1px -1px 0 rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.4)',
+          ? 'inset 1px 1px 0 rgba(255,255,255,0.04), inset -1px -1px 0 rgba(0,0,0,0.20)'
+          : 'inset 1px 1px 0 rgba(255,255,255,0.08), inset -1px -1px 0 rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.25)',
         opacity: data.isRaw ? 0.85 : 1,
         cursor: 'default',
       }}
@@ -104,7 +103,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
             width: 14,
             height: 14,
             borderRadius: '50%',
-            background: data.isCollapsed ? accent : '#1a1919',
+            background: data.isCollapsed ? accent : 'var(--th-bg-hdr)',
             border: `1px solid ${accent}`,
             color: data.isCollapsed ? '#0d0c0d' : accent,
             fontSize: 10,
@@ -127,12 +126,12 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
         width: 48,
         height: 64,
         flexShrink: 0,
-        background: '#1b1b1b',
-        borderRight: '1px solid #111',
+        background: 'var(--th-bg-well)',
+        borderRight: '1px solid var(--th-br)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.6), inset -1px -1px 0 rgba(255,255,255,0.04)',
+        boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.3), inset -1px -1px 0 rgba(255,255,255,0.04)',
       }}>
         {!imgFailed ? (
           <div style={{ width: 36, height: 36, overflow: 'hidden', position: 'relative' }}>
@@ -153,7 +152,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
             )}
           </div>
         ) : (
-          <span style={{ fontSize: 9, color: '#6b6060', textAlign: 'center', lineHeight: 1.2, fontFamily: 'monospace' }}>
+          <span style={{ fontSize: 9, color: 'var(--th-tx-mut)', textAlign: 'center', lineHeight: 1.2, fontFamily: 'monospace' }}>
             {data.recipeId.slice(0, 3).toUpperCase()}
           </span>
         )}
@@ -161,13 +160,12 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
 
       {/* content area */}
       <div style={{ flex: 1, padding: '6px 8px', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        {/* item name */}
         <span style={{
           fontSize: 11,
           lineHeight: 1.25,
           fontWeight: 600,
           fontFamily: "'Titillium Web', sans-serif",
-          color: data.isRaw ? '#A19E9A' : '#FFE6C0',
+          color: data.isRaw ? 'var(--th-tx-sec)' : 'var(--th-tx)',
           overflow: 'hidden',
           display: '-webkit-box',
           WebkitLineClamp: 2,
@@ -176,11 +174,10 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
           {data.name}
         </span>
 
-        {/* crafting time */}
         {!data.isRaw && (
           <span style={{
             fontSize: 9,
-            color: '#6b6060',
+            color: 'var(--th-tx-mut)',
             marginTop: 3,
             fontFamily: 'monospace',
           }}>
@@ -196,7 +193,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
         fontSize: 10,
         fontWeight: 700,
         fontFamily: 'monospace',
-        color: data.amount > 1 ? '#FF9F1C' : '#6b6060',
+        color: data.amount > 1 ? '#FF9F1C' : 'var(--th-tx-mut)',
         lineHeight: 1,
       }}>
         ×{displayAmount}
@@ -219,7 +216,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
             left: 'calc(100% + 14px)',
             top: '50%',
             transform: 'translateY(-50%)',
-            background: '#272526',
+            background: 'var(--th-bg-surf)',
             border: `1px solid ${accent}55`,
             borderTop: `2px solid ${accent}`,
             borderRadius: 2,
@@ -228,24 +225,24 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
             maxWidth: 245,
             zIndex: 9999,
             pointerEvents: touchTooltip ? 'auto' : 'none',
-            boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.8)',
+            boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.4)',
           }}
         >
-          <div style={{ color: '#FFE6C0', fontWeight: 700, fontSize: 13, marginBottom: 6, fontFamily: "'Titillium Web', sans-serif", letterSpacing: '0.04em' }}>
+          <div style={{ color: 'var(--th-tx)', fontWeight: 700, fontSize: 13, marginBottom: 6, fontFamily: "'Titillium Web', sans-serif", letterSpacing: '0.04em' }}>
             {data.name}
           </div>
-          <div style={{ color: '#A19E9A', fontSize: 11, marginBottom: 8, display: 'flex', gap: 12, fontFamily: 'monospace' }}>
+          <div style={{ color: 'var(--th-tx-sec)', fontSize: 11, marginBottom: 8, display: 'flex', gap: 12, fontFamily: 'monospace' }}>
             <span>⏱ {displayTime}/craft</span>
             <span>→ ×{data.resultAmount}</span>
           </div>
           {data.allIngredients.length > 0 && (
             <>
-              <div style={{ color: '#6b6060', fontSize: 10, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'Titillium Web', sans-serif" }}>
+              <div style={{ color: 'var(--th-tx-mut)', fontSize: 10, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'Titillium Web', sans-serif" }}>
                 Ingredients
               </div>
               {data.allIngredients.map(ing => (
                 <div key={ing.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                  <div style={{ width: 18, height: 18, overflow: 'hidden', flexShrink: 0, background: '#1b1b1b', borderRadius: 1 }}>
+                  <div style={{ width: 18, height: 18, overflow: 'hidden', flexShrink: 0, background: 'var(--th-bg-well)', borderRadius: 1 }}>
                     <img
                       src={`/icons/${ing.id}.png`}
                       alt=""
@@ -253,7 +250,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
                       onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }}
                     />
                   </div>
-                  <span style={{ color: '#A19E9A', fontSize: 11, fontFamily: 'monospace' }}>
+                  <span style={{ color: 'var(--th-tx-sec)', fontSize: 11, fontFamily: 'monospace' }}>
                     ×{ing.amount} {ing.name}
                   </span>
                 </div>
@@ -266,7 +263,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
             </div>
           )}
           {!data.isRaw && !data.isCollapsed && (
-            <div style={{ marginTop: 8, color: '#6b6060', fontSize: 10, fontFamily: 'monospace' }}>
+            <div style={{ marginTop: 8, color: 'var(--th-tx-mut)', fontSize: 10, fontFamily: 'monospace' }}>
               {isTouchDevice ? 'Double-tap to set as root' : 'Double-click to set as root'}
             </div>
           )}
@@ -280,7 +277,7 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
               onTouchStart={e => { e.stopPropagation(); setShowUsage(true); setTouchTooltip(false) }}
               style={{
                 marginTop: 8, width: '100%', padding: '6px 8px',
-                background: '#1d1c1d', border: `1px solid ${accent}44`,
+                background: 'var(--th-bg-deep)', border: `1px solid ${accent}44`,
                 borderRadius: 2, cursor: 'pointer',
                 color: '#c9a84c', fontSize: 10, fontFamily: 'monospace',
                 textAlign: 'left',
@@ -301,14 +298,14 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
             left: 'calc(100% + 14px)',
             top: '50%',
             transform: 'translateY(-50%)',
-            background: '#272526',
+            background: 'var(--th-bg-surf)',
             border: `1px solid ${accent}55`,
             borderTop: `2px solid ${accent}`,
             borderRadius: 2,
             width: 280,
             maxHeight: 360,
             zIndex: 9999,
-            boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.9)',
+            boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.5)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
@@ -317,27 +314,27 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '8px 10px 6px',
-            borderBottom: '1px solid #1a1919',
+            borderBottom: '1px solid var(--th-br-hdr)',
             flexShrink: 0,
-            background: '#222022',
+            background: 'var(--th-bg-deep)',
           }}>
             <div>
-              <span style={{ color: '#FFE6C0', fontWeight: 700, fontSize: 12, fontFamily: "'Titillium Web', sans-serif" }}>Used in</span>
+              <span style={{ color: 'var(--th-tx)', fontWeight: 700, fontSize: 12, fontFamily: "'Titillium Web', sans-serif" }}>Used in</span>
               <span style={{ color: '#FF9F1C', fontSize: 12, marginLeft: 5, fontFamily: 'monospace' }}>
                 {usedIn.length} recipe{usedIn.length !== 1 ? 's' : ''}
               </span>
             </div>
             <button
               onClick={e => { e.stopPropagation(); setShowUsage(false) }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b6060', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--th-tx-mut)', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
               onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#6b6060')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-mut)')}
             >×</button>
           </div>
 
-          <div style={{ overflowY: 'auto', padding: '6px 8px', flex: 1, background: '#1d1c1d' }}>
+          <div style={{ overflowY: 'auto', padding: '6px 8px', flex: 1, background: 'var(--th-bg-deep)' }}>
             {usedIn.length === 0 ? (
-              <span style={{ color: '#6b6060', fontSize: 12, fontFamily: 'monospace' }}>Not used in any recipe.</span>
+              <span style={{ color: 'var(--th-tx-mut)', fontSize: 12, fontFamily: 'monospace' }}>Not used in any recipe.</span>
             ) : (
               usedIn.map(r => {
                 const ingAmt = r.ingredients.find(ing => ing.id === data.recipeId)?.amount ?? 1
@@ -349,10 +346,10 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '5px 4px', borderRadius: 1, marginBottom: 2, cursor: 'pointer',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#272526')}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--th-bg-surf)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <div style={{ width: 28, height: 28, overflow: 'hidden', flexShrink: 0, background: '#1b1b1b', border: '1px solid #111' }}>
+                    <div style={{ width: 28, height: 28, overflow: 'hidden', flexShrink: 0, background: 'var(--th-bg-well)', border: '1px solid var(--th-br)' }}>
                       <img
                         src={`/icons/${r.id}.png`} alt=""
                         style={{ height: 28, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
@@ -360,10 +357,10 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
                       />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ color: '#FFE6C0', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>
+                      <div style={{ color: 'var(--th-tx)', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>
                         {r.name}
                       </div>
-                      <div style={{ color: '#6b6060', fontSize: 10, marginTop: 1, fontFamily: 'monospace' }}>
+                      <div style={{ color: 'var(--th-tx-mut)', fontSize: 10, marginTop: 1, fontFamily: 'monospace' }}>
                         ×{ingAmt} needed · ⏱{fmtTime(r.craftingTime)}
                       </div>
                     </div>
@@ -372,15 +369,15 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
                         →×{r.resultAmount}
                       </span>
                     )}
-                    <span style={{ color: '#6b6060', fontSize: 11, flexShrink: 0, marginLeft: 'auto' }}>↑</span>
+                    <span style={{ color: 'var(--th-tx-mut)', fontSize: 11, flexShrink: 0, marginLeft: 'auto' }}>↑</span>
                   </div>
                 )
               })
             )}
           </div>
 
-          <div style={{ padding: '5px 10px', borderTop: '1px solid #1a1919', flexShrink: 0, background: '#222022' }}>
-            <span style={{ color: '#6b6060', fontSize: 10, fontFamily: 'monospace' }}>Press U or Esc to close</span>
+          <div style={{ padding: '5px 10px', borderTop: '1px solid var(--th-br-hdr)', flexShrink: 0, background: 'var(--th-bg-deep)' }}>
+            <span style={{ color: 'var(--th-tx-mut)', fontSize: 10, fontFamily: 'monospace' }}>Press U or Esc to close</span>
           </div>
         </div>
       )}
