@@ -216,16 +216,31 @@ function useMobile() {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
+function getInitialView(): 'tree' | 'blueprints' {
+  return window.location.pathname.startsWith('/blueprints') ? 'blueprints' : 'tree'
+}
+
 export default function App() {
   const isMobile = useMobile()
-  const [view, setView] = useState<'tree' | 'blueprints'>('tree')
+  const [view, setView] = useState<'tree' | 'blueprints'>(getInitialView)
   const [blueprintSearch, setBlueprintSearch] = useState('')
+
+  function navigate(v: 'tree' | 'blueprints') {
+    history.pushState({}, '', v === 'blueprints' ? '/blueprints' : '/')
+    setView(v)
+  }
+
+  useEffect(() => {
+    const handler = () => setView(getInitialView())
+    window.addEventListener('popstate', handler)
+    return () => window.removeEventListener('popstate', handler)
+  }, [])
 
   useEffect(() => {
     const handler = (e: Event) => {
       const itemId = (e as CustomEvent<string>).detail
       setBlueprintSearch(itemId)
-      setView('blueprints')
+      navigate('blueprints')
     }
     window.addEventListener('find-blueprints', handler)
     return () => window.removeEventListener('find-blueprints', handler)
@@ -443,7 +458,7 @@ export default function App() {
                   Crafting Tree
                 </div>
                 <button
-                  onClick={() => setView(v => v === 'blueprints' ? 'tree' : 'blueprints')}
+                  onClick={() => navigate(view === 'blueprints' ? 'tree' : 'blueprints')}
                   style={{
                     background: view === 'blueprints' ? '#1a1a2a' : 'none',
                     border: `1px solid ${view === 'blueprints' ? '#a855f744' : 'var(--th-br-hdr)'}`,
@@ -591,7 +606,7 @@ export default function App() {
                   <span>{edges.length}e</span>
                 </div>
                 <button
-                  onClick={() => setView(v => v === 'blueprints' ? 'tree' : 'blueprints')}
+                  onClick={() => navigate(view === 'blueprints' ? 'tree' : 'blueprints')}
                   style={{
                     background: view === 'blueprints' ? '#1a1a2a' : 'var(--th-bg-well)',
                     border: `1px solid ${view === 'blueprints' ? '#a855f744' : 'var(--th-br)'}`,
@@ -627,7 +642,7 @@ export default function App() {
         {/* ── canvas / blueprints ── */}
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           {view === 'blueprints' ? (
-            <BlueprintsPage initialSearch={blueprintSearch} />
+            <BlueprintsPage initialSearch={blueprintSearch} isMobile={isMobile} />
           ) : (
             <>
               <FlowCanvas
