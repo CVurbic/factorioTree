@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { supabase, type Blueprint, type Comment } from '../lib/supabase'
 import { recipes } from '../data/recipes-generated'
 import { BlueprintPreview } from './BlueprintPreview'
@@ -120,7 +120,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 type PageState = 'browse' | 'share' | 'detail'
 
-export function BlueprintsPage() {
+export function BlueprintsPage({ initialSearch = '' }: { initialSearch?: string }) {
   const [pageState, setPageState] = useState<PageState>('browse')
 
   // username gate
@@ -146,9 +146,28 @@ export function BlueprintsPage() {
   const [loading, setLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [sort, setSort] = useState<SortKey>('upvotes')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialSearch)
   const [voted, setVoted] = useState<Set<string>>(getVoted)
   const [copied, setCopied] = useState<string | null>(null)
+  const [typeFilter, setTypeFilter] = useState<'all' | 'blueprint' | 'blueprint_book'>('all')
+  const [tagFilters, setTagFilters] = useState<Set<string>>(new Set())
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false)
+  const [tagSearch, setTagSearch] = useState('')
+  const tagDropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (initialSearch) setSearch(initialSearch)
+  }, [initialSearch])
+
+  const allTags = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const bp of blueprints) {
+      for (const tag of bp.tags ?? []) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1)
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([tag]) => tag)
+  }, [blueprints])
 
   const fetchBlueprints = useCallback(async (sortKey: SortKey) => {
     setLoading(true)
@@ -168,17 +187,28 @@ export function BlueprintsPage() {
     if (pageState === 'browse') fetchBlueprints(sort)
   }, [pageState, sort, fetchBlueprints])
 
-  const filtered = search.trim()
-    ? blueprints.filter(bp => {
-        const q = search.toLowerCase()
-        return (
-          bp.name.toLowerCase().includes(q) ||
-          bp.description?.toLowerCase().includes(q) ||
-          bp.author.toLowerCase().includes(q) ||
-          bp.item_ids.some(id => (recipes.find(r => r.id === id)?.name ?? id).toLowerCase().includes(q))
-        )
-      })
-    : blueprints
+  useEffect(() => {
+    if (!tagDropdownOpen) return
+    function handleOutside(e: MouseEvent) {
+      if (!tagDropdownRef.current?.contains(e.target as Node)) setTagDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [tagDropdownOpen])
+
+  const filtered = blueprints
+    .filter(bp => typeFilter === 'all' || bp.type === typeFilter)
+    .filter(bp => tagFilters.size === 0 || [...tagFilters].every(t => bp.tags?.includes(t)))
+    .filter(bp => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      return (
+        bp.name.toLowerCase().includes(q) ||
+        bp.description?.toLowerCase().includes(q) ||
+        bp.author.toLowerCase().includes(q) ||
+        bp.item_ids.some(id => (recipes.find(r => r.id === id)?.name ?? id).toLowerCase().includes(q))
+      )
+    })
 
   async function handleCopy(bp: Blueprint) {
     try {
@@ -435,6 +465,149 @@ export function BlueprintsPage() {
         )}
       </div>
 
+      {/* ── filter bar ── */}
+      {pageState === 'browse' && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap',
+          padding: '6px 16px', borderBottom: '1px solid var(--th-br)',
+          background: 'var(--th-bg-deep)', flexShrink: 0,
+        }}>
+          {/* type toggle */}
+          {([
+            { key: 'all' as const, label: 'All' },
+            { key: 'blueprint' as const, label: 'Blueprint' },
+            { key: 'blueprint_book' as const, label: 'Book' },
+          ]).map(({ key, label }) => (
+            <button key={key} onClick={() => setTypeFilter(key)} style={{
+              padding: '2px 7px',
+              background: typeFilter === key ? 'var(--th-bg-hdr)' : 'none',
+              border: `1px solid ${typeFilter === key ? '#FF9F1C44' : 'var(--th-br-hdr)'}`,
+              borderRadius: 1, cursor: 'pointer',
+              color: typeFilter === key ? '#FF9F1C' : 'var(--th-tx-vmut)',
+              fontSize: 9, fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
+              letterSpacing: '0.05em', textTransform: 'uppercase',
+            }}>
+              {label}
+            </button>
+          ))}
+
+          <div style={{ width: 1, height: 14, background: 'var(--th-br)', flexShrink: 0 }} />
+
+          {/* active tag chips */}
+          {[...tagFilters].map(tag => (
+            <span key={tag} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 3,
+              background: '#1a1a2a', border: '1px solid #a855f733',
+              borderRadius: 1, padding: '1px 5px',
+              color: '#a855f7', fontSize: 9,
+              fontFamily: "'Titillium Web', sans-serif",
+            }}>
+              {tag}
+              <button
+                onClick={() => setTagFilters(prev => { const s = new Set(prev); s.delete(tag); return s })}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a855f766', fontSize: 10, padding: 0, lineHeight: 1 }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#a855f7')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#a855f766')}
+              >×</button>
+            </span>
+          ))}
+
+          {/* tag dropdown */}
+          <div ref={tagDropdownRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => { setTagDropdownOpen(v => !v); setTagSearch('') }}
+              style={{
+                padding: '2px 7px',
+                background: tagDropdownOpen ? 'var(--th-bg-hdr)' : 'none',
+                border: `1px solid ${tagDropdownOpen ? '#a855f744' : 'var(--th-br-hdr)'}`,
+                borderRadius: 1, cursor: 'pointer',
+                color: tagDropdownOpen ? '#a855f7' : 'var(--th-tx-vmut)',
+                fontSize: 9, fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
+                letterSpacing: '0.05em',
+              }}
+            >
+              + Tags {tagDropdownOpen ? '▴' : '▾'}
+            </button>
+            {tagDropdownOpen && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, marginTop: 3, zIndex: 200,
+                background: 'var(--th-bg-surf)', border: '1px solid var(--th-br)',
+                borderRadius: 1, boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+                width: 200,
+              }}>
+                <div style={{ padding: '6px 8px', borderBottom: '1px solid var(--th-br)' }}>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={tagSearch}
+                    onChange={e => setTagSearch(e.target.value)}
+                    placeholder="Filter tags…"
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1,
+                      color: 'var(--th-tx)', fontSize: 10, padding: '3px 6px', outline: 'none',
+                      fontFamily: "'Titillium Web', sans-serif",
+                    }}
+                  />
+                </div>
+                <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                  {(() => {
+                    const visible = allTags.filter(t => !tagSearch || t.toLowerCase().includes(tagSearch.toLowerCase()))
+                    if (visible.length === 0) return (
+                      <div style={{ padding: '8px 10px', color: 'var(--th-tx-vmut)', fontSize: 10, fontFamily: 'monospace' }}>No tags found</div>
+                    )
+                    return visible.map(tag => {
+                      const active = tagFilters.has(tag)
+                      return (
+                        <div
+                          key={tag}
+                          onClick={() => setTagFilters(prev => {
+                            const s = new Set(prev)
+                            if (s.has(tag)) s.delete(tag); else s.add(tag)
+                            return s
+                          })}
+                          style={{
+                            padding: '5px 10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            color: active ? '#a855f7' : 'var(--th-tx-sec)',
+                            fontSize: 10, fontFamily: "'Titillium Web', sans-serif",
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--th-bg-hdr)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <span style={{ width: 10, fontSize: 8, color: '#a855f7', opacity: active ? 1 : 0 }}>✓</span>
+                          {tag}
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* clear */}
+          {(typeFilter !== 'all' || tagFilters.size > 0) && (
+            <button
+              onClick={() => { setTypeFilter('all'); setTagFilters(new Set()) }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--th-tx-vmut)', fontSize: 9, padding: '2px 4px',
+                fontFamily: 'monospace',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-vmut)')}
+            >
+              × clear
+            </button>
+          )}
+
+          <span style={{ marginLeft: 'auto', color: 'var(--th-tx-vmut)', fontSize: 9, fontFamily: 'monospace' }}>
+            {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
+
       {/* ── browse ── */}
       {pageState === 'browse' && (
         <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
@@ -450,7 +623,7 @@ export function BlueprintsPage() {
           )}
           {!loading && !fetchError && filtered.length === 0 && (
             <div style={{ color: 'var(--th-tx-vmut)', fontSize: 11, fontFamily: 'monospace', padding: 20, textAlign: 'center' }}>
-              {search ? 'No blueprints match your search.' : 'No blueprints yet — be the first to share one!'}
+              {(search || typeFilter !== 'all' || tagFilters.size > 0) ? 'No blueprints match your filters.' : 'No blueprints yet — be the first to share one!'}
             </div>
           )}
           <div style={{
@@ -467,6 +640,7 @@ export function BlueprintsPage() {
                 onOpen={() => openDetail(bp)}
                 onCopy={handleCopy}
                 onUpvote={handleUpvote}
+                onTagClick={tag => setTagFilters(prev => { const s = new Set(prev); s.add(tag); return s })}
               />
             ))}
           </div>
@@ -725,11 +899,40 @@ export function BlueprintsPage() {
               </div>
             )}
 
+            {/* tags */}
+            {selectedBp.tags?.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {selectedBp.tags.map(tag => (
+                  <span
+                    key={tag}
+                    onClick={() => { setTagFilters(prev => { const s = new Set(prev); s.add(tag); return s }); setPageState('browse') }}
+                    style={{
+                      background: 'var(--th-bg-well)', border: '1px solid var(--th-br)',
+                      borderRadius: 1, padding: '2px 7px', cursor: 'pointer',
+                      color: 'var(--th-tx-vmut)', fontSize: 10,
+                      fontFamily: "'Titillium Web', sans-serif",
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#a855f744'; (e.currentTarget as HTMLElement).style.color = '#a855f7' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--th-br)'; (e.currentTarget as HTMLElement).style.color = 'var(--th-tx-vmut)' }}
+                  >{tag}</span>
+                ))}
+              </div>
+            )}
+
             {/* description */}
             {selectedBp.description && (
               <div style={{ color: 'var(--th-tx-sec)', fontSize: 12, lineHeight: 1.65, fontFamily: 'monospace', background: 'var(--th-bg-hdr)', padding: '10px 12px', borderRadius: 1, border: '1px solid var(--th-br)' }}>
                 {selectedBp.description}
               </div>
+            )}
+
+            {/* screenshot from source */}
+            {selectedBp.image_url && (
+              <img
+                src={selectedBp.image_url} alt=""
+                style={{ width: '100%', borderRadius: 1, display: 'block' }}
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+              />
             )}
 
             {/* preview */}
@@ -770,6 +973,17 @@ export function BlueprintsPage() {
                 ▲ <span style={{ fontFamily: 'monospace' }}>{selectedBp.upvotes}</span>
               </button>
             </div>
+
+            {/* source attribution */}
+            {selectedBp.source_url && (
+              <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--th-tx-vmut)' }}>
+                Originally from{' '}
+                <a
+                  href={selectedBp.source_url} target="_blank" rel="noopener noreferrer"
+                  style={{ color: '#60a5fa', textDecoration: 'none' }}
+                >factorioprints.com ↗</a>
+              </div>
+            )}
 
             {/* ── comments ── */}
             <div>
@@ -869,13 +1083,14 @@ export function BlueprintsPage() {
 
 // ── browse card ───────────────────────────────────────────────────────────────
 
-function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote }: {
+function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote, onTagClick }: {
   bp: Blueprint
   copied: string | null
   voted: Set<string>
   onOpen: () => void
   onCopy: (bp: Blueprint) => void
   onUpvote: (e: React.MouseEvent, bp: Blueprint) => void
+  onTagClick: (tag: string) => void
 }) {
   return (
     <div
@@ -921,6 +1136,13 @@ function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote }: {
               {bp.author} · {fmtDate(bp.created_at)}
             </span>
             <TypeBadge bp={bp} />
+            {bp.source_url && (
+              <a
+                href={bp.source_url} target="_blank" rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{ color: '#60a5fa', fontSize: 9, fontFamily: 'monospace', textDecoration: 'none' }}
+              >↗ source</a>
+            )}
           </div>
         </div>
 
@@ -957,10 +1179,40 @@ function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote }: {
         </div>
       )}
 
+      {/* tags */}
+      {bp.tags?.length > 0 && (
+        <div style={{ padding: '0 12px 6px', display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          {bp.tags.slice(0, 5).map(tag => (
+            <span
+              key={tag}
+              onClick={e => { e.stopPropagation(); onTagClick(tag) }}
+              style={{
+                background: 'var(--th-bg-well)', border: '1px solid var(--th-br)',
+                borderRadius: 1, padding: '1px 5px', cursor: 'pointer',
+                color: 'var(--th-tx-vmut)', fontSize: 9,
+                fontFamily: "'Titillium Web', sans-serif",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#a855f744'; (e.currentTarget as HTMLElement).style.color = '#a855f7' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--th-br)'; (e.currentTarget as HTMLElement).style.color = 'var(--th-tx-vmut)' }}
+            >{tag}</span>
+          ))}
+        </div>
+      )}
+
       {/* preview */}
-      <div style={{ padding: '0 12px 8px' }}>
-        <BlueprintPreview blueprintString={bp.blueprint_string} maxW={276} maxH={160} />
-      </div>
+      {bp.image_url ? (
+        <div style={{ padding: '0 12px 8px' }}>
+          <img
+            src={bp.image_url} alt=""
+            style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block', borderRadius: 1 }}
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+          />
+        </div>
+      ) : (
+        <div style={{ padding: '0 12px 8px' }}>
+          <BlueprintPreview blueprintString={bp.blueprint_string} maxW={276} maxH={160} />
+        </div>
+      )}
 
       {/* copy button */}
       <div style={{ padding: '0 12px 10px' }}>

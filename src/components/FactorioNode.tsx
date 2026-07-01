@@ -46,6 +46,19 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
   }, [hovered, showUsage])
 
   useEffect(() => {
+    if (!hovered || data.isRaw) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.key === 'b' || e.key === 'B') {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('find-blueprints', { detail: data.recipeId }))
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [hovered, data.recipeId, data.isRaw])
+
+  useEffect(() => {
     if (!touchTooltip) return
     const handler = () => setTouchTooltip(false)
     window.addEventListener('touchstart', handler)
@@ -272,6 +285,11 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
               Press U — extend tree up ({usedIn.length} recipe{usedIn.length !== 1 ? 's' : ''})
             </div>
           )}
+          {!data.isRaw && !isTouchDevice && (
+            <div style={{ marginTop: 4, color: '#a855f7', fontSize: 10, fontFamily: 'monospace' }}>
+              Press B — find blueprints
+            </div>
+          )}
           {usedIn.length > 0 && isTouchDevice && (
             <button
               onTouchStart={e => { e.stopPropagation(); setShowUsage(true); setTouchTooltip(false) }}
@@ -284,6 +302,24 @@ export function FactorioNode({ data }: NodeProps<FactorioNodeType>) {
               }}
             >
               ↑ Used in {usedIn.length} recipe{usedIn.length !== 1 ? 's' : ''}
+            </button>
+          )}
+          {!data.isRaw && isTouchDevice && (
+            <button
+              onTouchStart={e => {
+                e.stopPropagation()
+                window.dispatchEvent(new CustomEvent('find-blueprints', { detail: data.recipeId }))
+                setTouchTooltip(false)
+              }}
+              style={{
+                marginTop: 6, width: '100%', padding: '6px 8px',
+                background: 'var(--th-bg-deep)', border: '1px solid #a855f744',
+                borderRadius: 2, cursor: 'pointer',
+                color: '#a855f7', fontSize: 10, fontFamily: 'monospace',
+                textAlign: 'left',
+              }}
+            >
+              ⊞ Find blueprints
             </button>
           )}
         </div>

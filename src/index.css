@@ -32,6 +32,8 @@
   --th-grad-to:    #252325;
 
   --th-dot:        #2e2c2e;
+  --th-grid-minor: rgba(160, 90, 25, 0.20);
+  --th-grid-major: rgba(200, 115, 35, 0.55);
   --th-mm-mask:    rgba(0,0,0,0.65);
 
   /* existing vars (kept for CSS class usage) */
@@ -77,6 +79,8 @@
   --th-grad-to:    #ccc8c0;
 
   --th-dot:        #c8c4bc;
+  --th-grid-minor: rgba(130, 70, 15, 0.18);
+  --th-grid-major: rgba(130, 70, 15, 0.45);
   --th-mm-mask:    rgba(0,0,0,0.20);
 
   --canvas-bg:     #e8e4dc;
@@ -108,11 +112,9 @@ body {
 
 /* ── React Flow canvas ── */
 .react-flow__background {
-  background-color: var(--th-bg) !important;
-}
-
-.react-flow__background pattern circle {
-  fill: var(--th-dot) !important;
+  background-color: var(--th-bg-rf) !important;
+  -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, black 25%, transparent 95%);
+  mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, black 25%, transparent 95%);
 }
 
 .react-flow__controls {

@@ -19,6 +19,9 @@ export interface Blueprint {
   upvotes: number
   downloads: number
   created_at: string
+  source_url: string | null
+  image_url: string | null
+  tags: string[]
 }
 
 export interface Comment {

@@ -28,7 +28,6 @@ import { ConveyorEdge } from './components/ConveyorEdge'
 import { ItemPickerModal } from './components/ItemPickerModal'
 import { RawMaterialsPanel } from './components/RawMaterialsPanel'
 import { BlueprintsPage } from './components/BlueprintsPage'
-import { PlanetTreePage } from './components/PlanetTreePage'
 import { Legend } from './components/Legend'
 
 const nodeTypes: NodeTypes = { factorioNode: FactorioNode, treeFrame: TreeFrame }
@@ -162,7 +161,8 @@ function FlowCanvas({ nodes, edges, activeKey, onNodeDoubleClick, onRemoveTree, 
         minZoom={0.05}
         maxZoom={3}
       >
-        <Background variant={BackgroundVariant.Dots} color="var(--th-dot)" gap={24} size={1.5} />
+        <Background variant={BackgroundVariant.Lines} gap={24} color="var(--th-grid-minor)" lineWidth={0.5} />
+        <Background variant={BackgroundVariant.Lines} gap={240} color="var(--th-grid-major)" lineWidth={1} />
         <Controls showInteractive={false} />
         {!isMobile && (
           <MiniMap
@@ -218,7 +218,18 @@ function useMobile() {
 
 export default function App() {
   const isMobile = useMobile()
-  const [view, setView] = useState<'tree' | 'blueprints' | 'planet-tree'>('tree')
+  const [view, setView] = useState<'tree' | 'blueprints'>('tree')
+  const [blueprintSearch, setBlueprintSearch] = useState('')
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const itemId = (e as CustomEvent<string>).detail
+      setBlueprintSearch(itemId)
+      setView('blueprints')
+    }
+    window.addEventListener('find-blueprints', handler)
+    return () => window.removeEventListener('find-blueprints', handler)
+  }, [])
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try { return (localStorage.getItem('ft-theme') ?? 'dark') as 'dark' | 'light' }
@@ -446,20 +457,6 @@ export default function App() {
                   Blueprints
                 </button>
                 <button
-                  onClick={() => setView(v => v === 'planet-tree' ? 'tree' : 'planet-tree')}
-                  style={{
-                    background: view === 'planet-tree' ? '#1a2a1a' : 'none',
-                    border: `1px solid ${view === 'planet-tree' ? '#22c55e44' : 'var(--th-br-hdr)'}`,
-                    borderRadius: 1, cursor: 'pointer',
-                    color: view === 'planet-tree' ? '#22c55e' : 'var(--th-tx-vmut)',
-                    fontSize: 9, padding: '3px 8px', flexShrink: 0,
-                    fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
-                    letterSpacing: '0.08em', textTransform: 'uppercase',
-                  }}
-                >
-                  Planets
-                </button>
-                <button
                   onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
                   title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                   style={{
@@ -611,23 +608,6 @@ export default function App() {
                   Blueprints
                 </button>
                 <button
-                  onClick={() => setView(v => v === 'planet-tree' ? 'tree' : 'planet-tree')}
-                  style={{
-                    background: view === 'planet-tree' ? '#1a2a1a' : 'var(--th-bg-well)',
-                    border: `1px solid ${view === 'planet-tree' ? '#22c55e44' : 'var(--th-br)'}`,
-                    boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.04)',
-                    borderRadius: 1, cursor: 'pointer',
-                    color: view === 'planet-tree' ? '#22c55e' : 'var(--th-tx-vmut)',
-                    fontSize: 10, padding: '4px 10px', flexShrink: 0,
-                    fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
-                    letterSpacing: '0.08em', textTransform: 'uppercase',
-                  }}
-                  onMouseEnter={e => { if (view !== 'planet-tree') { e.currentTarget.style.color = '#22c55e'; e.currentTarget.style.borderColor = '#22c55e44' } }}
-                  onMouseLeave={e => { if (view !== 'planet-tree') { e.currentTarget.style.color = 'var(--th-tx-vmut)'; e.currentTarget.style.borderColor = 'var(--th-br)' } }}
-                >
-                  Planets
-                </button>
-                <button
                   onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
                   title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                   style={{
@@ -647,9 +627,7 @@ export default function App() {
         {/* ── canvas / blueprints ── */}
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           {view === 'blueprints' ? (
-            <BlueprintsPage />
-          ) : view === 'planet-tree' ? (
-            <PlanetTreePage />
+            <BlueprintsPage initialSearch={blueprintSearch} />
           ) : (
             <>
               <FlowCanvas
