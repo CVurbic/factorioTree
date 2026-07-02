@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react'
 import { supabase, type Blueprint, type Comment } from '../lib/supabase'
 import { recipes } from '../data/recipes-generated'
 import { BlueprintPreview } from './BlueprintPreview'
@@ -6,7 +6,7 @@ import { UsernameModal, getUsername, clearUsername } from './UsernameGate'
 
 // ── local storage helpers ─────────────────────────────────────────────────────
 
-const VOTED_KEY     = 'ft-voted-blueprints'
+const VOTED_KEY = 'ft-voted-blueprints'
 const CLIENT_ID_KEY = 'ft-client-id'
 
 function getVoted(): Set<string> {
@@ -26,6 +26,8 @@ function fmtDate(s: string): string {
   return new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })
 }
 
+const MONO_FONT = "'IBM Plex Mono', monospace"
+
 // ── blueprint type detection ──────────────────────────────────────────────────
 
 async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
@@ -34,7 +36,7 @@ async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
       const ds = new DecompressionStream(fmt)
       const writer = ds.writable.getWriter()
       const reader = ds.readable.getReader()
-      writer.write(bytes as unknown as ArrayBuffer).then(() => writer.close()).catch(() => {})
+      writer.write(bytes as unknown as ArrayBuffer).then(() => writer.close()).catch(() => { })
       const chunks: Uint8Array[] = []
       while (true) {
         const { done, value } = await reader.read()
@@ -51,7 +53,7 @@ async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
   throw new Error('inflate failed')
 }
 
-async function detectBlueprintType(str: string): Promise<{ type: 'blueprint' | 'blueprint_book'; count: number | null } | null> {
+async function detectBlueprintType(str: string): Promise<{ type: 'blueprint' | 'blueprint_book'; count: number | null; sub_blueprint_names: string[] } | null> {
   try {
     const binary = atob(str.slice(1))
     const bytes = new Uint8Array(binary.length)
@@ -59,10 +61,14 @@ async function detectBlueprintType(str: string): Promise<{ type: 'blueprint' | '
     const buf = await inflate(bytes)
     const json = JSON.parse(new TextDecoder().decode(buf)) as Record<string, unknown>
     if (json.blueprint_book) {
-      const book = json.blueprint_book as { blueprints?: unknown[] }
-      return { type: 'blueprint_book', count: book.blueprints?.length ?? null }
+      type BookEntry = { blueprint?: { label?: string }; blueprint_book?: { label?: string } }
+      const book = json.blueprint_book as { blueprints?: BookEntry[] }
+      const sub_blueprint_names = (book.blueprints ?? [])
+        .map(b => b.blueprint?.label ?? b.blueprint_book?.label ?? '')
+        .filter(Boolean)
+      return { type: 'blueprint_book', count: book.blueprints?.length ?? null, sub_blueprint_names }
     }
-    if (json.blueprint) return { type: 'blueprint', count: null }
+    if (json.blueprint) return { type: 'blueprint', count: null, sub_blueprint_names: [] }
     return null
   } catch { return null }
 }
@@ -112,6 +118,22 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ background: 'var(--th-bg-well)', padding: '10px 13px' }}>
+      <div style={{
+        color: 'var(--th-tx-faint)', fontSize: 9, textTransform: 'uppercase',
+        letterSpacing: '0.1em', marginBottom: 5, fontFamily: MONO_FONT,
+      }}>
+        {label}
+      </div>
+      <div style={{ color: 'var(--th-tx)', fontSize: 18, fontWeight: 700, fontFamily: "'Titillium Web', sans-serif" }}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
 // ── sidebar ───────────────────────────────────────────────────────────────────
 
 function Sidebar({
@@ -157,7 +179,7 @@ function Sidebar({
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
           </svg>
           Filters
           {hasFilters && (
@@ -239,7 +261,7 @@ function Sidebar({
               No tags yet
             </div>
           )}
-          {allTags.map(({ tag, count }) => {
+          {allTags.filter(({ count }) => count > 5).map(({ tag, count }) => {
             const active = tagFilters.has(tag)
             return (
               <div
@@ -342,6 +364,8 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
   const [sort, setSort] = useState<SortKey>('upvotes')
   const [search, setSearch] = useState(initialSearch)
   const [voted, setVoted] = useState<Set<string>>(getVoted)
+  const votedRef = useRef(voted)
+  useEffect(() => { votedRef.current = voted }, [voted])
   const [copied, setCopied] = useState<string | null>(null)
   const [typeFilter, setTypeFilter] = useState<'all' | 'blueprint' | 'blueprint_book'>('all')
   const [tagFilters, setTagFilters] = useState<Set<string>>(new Set())
@@ -387,30 +411,49 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
         searchRef.current?.focus()
       }
       if (e.key === 'Escape' && pageState === 'detail') {
-        setPageState('browse')
+        goToBrowse()
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [pageState])
 
-  const filtered = blueprints
-    .filter(bp => typeFilter === 'all' || bp.type === typeFilter)
-    .filter(bp => tagFilters.size === 0 || [...tagFilters].every(t => bp.tags?.includes(t)))
-    .filter(bp => {
-      if (!search.trim()) return true
-      const q = search.toLowerCase()
-      return (
-        bp.name.toLowerCase().includes(q) ||
-        bp.description?.toLowerCase().includes(q) ||
-        bp.author.toLowerCase().includes(q) ||
-        bp.item_ids.some(id => (recipes.find(r => r.id === id)?.name ?? id).toLowerCase().includes(q))
-      )
-    })
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const tags = [...tagFilters]
+    return blueprints
+      .filter(bp => typeFilter === 'all' || bp.type === typeFilter)
+      .filter(bp => tags.length === 0 || tags.every(t => bp.tags.includes(t)))
+      .filter(bp => {
+        if (!q) return true
+        return (
+          bp.name.toLowerCase().includes(q) ||
+          bp.description?.toLowerCase().includes(q) ||
+          bp.author.toLowerCase().includes(q) ||
+          bp.item_ids.some(id => (recipes.find(r => r.id === id)?.name ?? id).toLowerCase().includes(q)) ||
+          bp.sub_blueprint_names.some(n => { const name = n.toLowerCase(); return name.includes(q) || (name.length >= 4 && q.includes(name)) })
+        )
+      })
+  }, [blueprints, typeFilter, tagFilters, search])
 
-  async function handleCopy(bp: Blueprint) {
+  const handleCopy = useCallback(async (bp: Blueprint) => {
+    let str = bp.blueprint_string
+    if (!str) {
+      if (bp.string_url) {
+        try {
+          const res = await fetch(bp.string_url)
+          str = (await res.text()).trim()
+        } catch {
+          if (bp.source_url) window.open(bp.source_url, '_blank')
+          return
+        }
+      } else {
+        if (bp.source_url) window.open(bp.source_url, '_blank')
+        return
+      }
+    }
     try {
-      await navigator.clipboard.writeText(bp.blueprint_string)
+      await navigator.clipboard.writeText(str)
       setCopied(bp.id)
       setTimeout(() => setCopied(null), 2000)
       supabase.rpc('increment_downloads', { blueprint_id: bp.id, client_id: getClientId() }).then(({ data }) => {
@@ -418,37 +461,108 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
           setBlueprints(prev => prev.map(b => b.id === bp.id ? { ...b, downloads: b.downloads + 1 } : b))
       })
     } catch {
-      window.prompt('Copy this blueprint string:', bp.blueprint_string)
+      window.prompt('Copy this blueprint string:', str)
     }
-  }
+  }, [])
 
-  async function handleUpvote(e: React.MouseEvent, bp: Blueprint) {
+  const handleUpvote = useCallback(async (e: React.MouseEvent, bp: Blueprint) => {
     e.stopPropagation()
-    if (voted.has(bp.id)) return
+    if (votedRef.current.has(bp.id)) return
     const { error } = await supabase.rpc('increment_upvotes', { blueprint_id: bp.id })
     if (!error) {
-      const next = new Set(voted); next.add(bp.id)
+      const next = new Set(votedRef.current); next.add(bp.id)
       setVoted(next)
       localStorage.setItem(VOTED_KEY, JSON.stringify([...next]))
       setBlueprints(prev => prev.map(b => b.id === bp.id ? { ...b, upvotes: b.upvotes + 1 } : b))
     }
-  }
+  }, [])
+
+  const handleTagClick = useCallback((tag: string) => {
+    setTagFilters(prev => { const s = new Set(prev); s.add(tag); return s })
+  }, [])
 
   // ── detail state ─────────────────────────────────────────────────────────────
   const [selectedBp, setSelectedBp] = useState<Blueprint | null>(null)
+  const [bookContents, setBookContents] = useState<Array<{ label: string; index: number }> | null>(null)
+  const [previewStats, setPreviewStats] = useState<{ entityCount: number; tilesW: number; tilesH: number } | null>(null)
+  const [imageFailed, setImageFailed] = useState(false)
+  const [selectedBookIndex, setSelectedBookIndex] = useState(0)
+  const [forceCanvas, setForceCanvas] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [commentsLoading, setCommentsLoading] = useState(false)
   const [commentBody, setCommentBody] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
 
-  function openDetail(bp: Blueprint) {
+  function goToBrowse() {
+    history.pushState({}, '', '/blueprints')
+    setPageState('browse')
+  }
+
+  const openDetail = useCallback((bp: Blueprint) => {
+    history.pushState({}, '', `/blueprints/${bp.id}`)
     setSelectedBp(bp)
     setComments([])
     setCommentBody('')
     setCommentError(null)
+    setPreviewStats(null)
+    setImageFailed(false)
+    setSelectedBookIndex(0)
+    setForceCanvas(false)
     setPageState('detail')
-  }
+  }, [])
+
+  const openDetailById = useCallback(async (id: string) => {
+    const { data } = await supabase.from('blueprints').select('*').eq('id', id).single()
+    if (data) openDetail(data as Blueprint)
+  }, [openDetail])
+
+  // browser back/forward within /blueprints/*
+  useEffect(() => {
+    function handler() {
+      const path = window.location.pathname
+      if (path === '/blueprints' || path === '/blueprints/') setPageState('browse')
+      else if (/^\/blueprints\/[^/]+$/.test(path)) {
+        const id = path.split('/').pop()!
+        openDetailById(id)
+      }
+    }
+    window.addEventListener('popstate', handler)
+    return () => window.removeEventListener('popstate', handler)
+  }, [openDetailById])
+
+  // deep-link: page loaded directly at /blueprints/<id>
+  useEffect(() => {
+    const match = window.location.pathname.match(/^\/blueprints\/([^/]+)$/)
+    if (!match) return
+    openDetailById(match[1])
+  }, [openDetailById])
+
+  useEffect(() => {
+    if (!selectedBp || selectedBp.type !== 'blueprint_book') { setBookContents(null); return }
+    let cancelled = false
+    async function decode() {
+      let str = selectedBp!.blueprint_string
+      if (!str && selectedBp!.string_url) {
+        try { const res = await fetch(selectedBp!.string_url); str = (await res.text()).trim() } catch { return }
+      }
+      if (!str || cancelled) return
+      try {
+        const binary = atob(str.slice(1))
+        const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+        const buf = await inflate(bytes)
+        const json = JSON.parse(new TextDecoder().decode(buf)) as Record<string, unknown>
+        const book = (json.blueprint_book as { blueprints?: Array<{ blueprint?: { label?: string }; blueprint_book?: { label?: string } }> } | undefined)
+        if (!book?.blueprints || cancelled) return
+        setBookContents(book.blueprints.map((item, i) => ({
+          label: item.blueprint?.label ?? item.blueprint_book?.label ?? `Blueprint ${i + 1}`,
+          index: i,
+        })))
+      } catch { /* malformed string */ }
+    }
+    decode()
+    return () => { cancelled = true }
+  }, [selectedBp])
 
   useEffect(() => {
     if (!selectedBp || pageState !== 'detail') return
@@ -487,7 +601,10 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
   const [formItemIds, setFormItemIds] = useState<string[]>([])
   const [formItemQuery, setFormItemQuery] = useState('')
   const [showItemPicker, setShowItemPicker] = useState(false)
-  const [detectedType, setDetectedType] = useState<{ type: 'blueprint' | 'blueprint_book'; count: number | null } | null>(null)
+  const [detectedType, setDetectedType] = useState<{ type: 'blueprint' | 'blueprint_book'; count: number | null; sub_blueprint_names: string[] } | null>(null)
+  const [formImageUrl, setFormImageUrl] = useState<string | null>(null)
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -502,10 +619,25 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
 
   const itemResults = formItemQuery.length > 0
     ? recipes.filter(r =>
-        r.name.toLowerCase().includes(formItemQuery.toLowerCase()) &&
-        !formItemIds.includes(r.id),
-      ).slice(0, 8)
+      r.name.toLowerCase().includes(formItemQuery.toLowerCase()) &&
+      !formItemIds.includes(r.id),
+    ).slice(0, 8)
     : []
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageError(null)
+    setImageUploading(true)
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const { data, error } = await supabase.storage
+      .from('blueprint-images')
+      .upload(`public/${crypto.randomUUID()}.${ext}`, file, { cacheControl: '3600', upsert: false, contentType: file.type })
+    setImageUploading(false)
+    if (error) { setImageError(error.message); return }
+    const { data: urlData } = supabase.storage.from('blueprint-images').getPublicUrl(data.path)
+    setFormImageUrl(urlData.publicUrl)
+  }
 
   async function doSubmit() {
     const author = getUsername()!
@@ -522,13 +654,15 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
       item_ids: formItemIds,
       type: detectedType?.type ?? 'blueprint',
       blueprint_count: detectedType?.count ?? null,
+      sub_blueprint_names: detectedType?.sub_blueprint_names ?? [],
+      image_url: formImageUrl,
     })
     setSubmitting(false)
     if (error) { setSubmitError(error.message); return }
     setSubmitted(true)
     setFormName(''); setFormDesc(''); setFormString(''); setFormItemIds([]); setFormItemQuery('')
-    setDetectedType(null)
-    setTimeout(() => { setSubmitted(false); setPageState('browse'); fetchBlueprints(sort) }, 1800)
+    setDetectedType(null); setFormImageUrl(null); setImageError(null)
+    setTimeout(() => { setSubmitted(false); history.pushState({}, '', '/blueprints'); setPageState('browse'); fetchBlueprints(sort) }, 1800)
   }
 
   function handleShare() {
@@ -573,7 +707,7 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
         }}>
           {pageState !== 'browse' && (
             <button
-              onClick={() => setPageState('browse')}
+              onClick={() => goToBrowse()}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 color: 'var(--th-tx-vmut)', fontSize: 11, padding: '3px 0',
@@ -601,7 +735,7 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
                   }}
                 >
                   <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                   </svg>
                   Filters
                 </button>
@@ -713,19 +847,19 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
 
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: 14,
+              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+              gap: 16,
             }}>
               {filtered.map(bp => (
                 <BrowseCard
                   key={bp.id}
                   bp={bp}
-                  copied={copied}
-                  voted={voted}
-                  onOpen={() => openDetail(bp)}
+                  isCopied={copied === bp.id}
+                  isVoted={voted.has(bp.id)}
+                  openDetail={openDetail}
                   onCopy={handleCopy}
                   onUpvote={handleUpvote}
-                  onTagClick={tag => setTagFilters(prev => { const s = new Set(prev); s.add(tag); return s })}
+                  onTagClick={handleTagClick}
                 />
               ))}
             </div>
@@ -833,6 +967,46 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
                     />
                   </div>
 
+                  {/* cover image */}
+                  <div style={{ marginBottom: 14 }}>
+                    <FieldLabel>Cover Image (optional)</FieldLabel>
+                    <label style={{ display: 'block', cursor: 'pointer' }}>
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+                      {formImageUrl ? (
+                        <div style={{ position: 'relative' }}>
+                          <img src={formImageUrl} alt="" style={{ width: '100%', borderRadius: 1, display: 'block', maxHeight: 200, objectFit: 'cover' }} />
+                          <button
+                            onClick={e => { e.preventDefault(); setFormImageUrl(null) }}
+                            style={{
+                              position: 'absolute', top: 6, right: 6,
+                              background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.15)',
+                              borderRadius: 2, padding: '2px 7px', cursor: 'pointer',
+                              color: 'var(--th-tx-sec)', fontSize: 11, lineHeight: 1,
+                            }}
+                          >✕</button>
+                        </div>
+                      ) : imageUploading ? (
+                        <div style={{
+                          border: '1px dashed var(--th-br)', borderRadius: 1, padding: '20px',
+                          textAlign: 'center', color: 'var(--th-tx-vmut)', fontSize: 11, fontFamily: 'monospace',
+                        }}>Uploading…</div>
+                      ) : (
+                        <div style={{
+                          border: '1px dashed var(--th-br)', borderRadius: 1, padding: '20px',
+                          textAlign: 'center', color: 'var(--th-tx-vmut)', fontSize: 11,
+                          fontFamily: "'Titillium Web', sans-serif",
+                          transition: 'border-color 0.15s, color 0.15s',
+                        }}
+                          onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = '#FF9F1C55'; el.style.color = 'var(--th-tx-sec)' }}
+                          onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--th-br)'; el.style.color = 'var(--th-tx-vmut)' }}
+                        >
+                          Click to upload a screenshot
+                        </div>
+                      )}
+                    </label>
+                    {imageError && <div style={{ color: '#ef4444', fontSize: 10, marginTop: 4, fontFamily: 'monospace' }}>{imageError}</div>}
+                  </div>
+
                   {/* item tags */}
                   <div style={{ marginBottom: 14, position: 'relative' }}>
                     <FieldLabel>Produces Items * (tag what this makes)</FieldLabel>
@@ -907,8 +1081,8 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
                   {username
                     ? <PostingAs username={username} onClear={() => { clearUsername(); setUsername(null) }} />
                     : <div style={{ color: 'var(--th-tx-vmut)', fontSize: 9, fontFamily: 'monospace', marginBottom: 10 }}>
-                        You'll choose a display name before sharing.
-                      </div>
+                      You'll choose a display name before sharing.
+                    </div>
                   }
 
                   {submitError && (
@@ -938,169 +1112,335 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
 
         {/* ── detail ── */}
         {pageState === 'detail' && selectedBp && (
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', justifyContent: 'center', padding: 24 }}>
-            <div style={{ width: '100%', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '28px 24px' }}>
+            <div style={{ maxWidth: 980, margin: '0 auto' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'minmax(420px, 1fr) 320px',
+                gap: isMobile ? 24 : 36,
+              }}>
 
-              {/* meta */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ color: 'var(--th-tx)', fontSize: 18, fontWeight: 700, fontFamily: "'Titillium Web', sans-serif", lineHeight: 1.3, marginBottom: 5 }}>
-                    {selectedBp.name}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ color: 'var(--th-tx-vmut)', fontSize: 10, fontFamily: 'monospace' }}>
-                      by {selectedBp.author} · {fmtDate(selectedBp.created_at)}
-                    </span>
-                    <TypeBadge bp={selectedBp} />
-                  </div>
-                </div>
-                <span style={{ color: 'var(--th-tx-vmut)', fontSize: 10, fontFamily: 'monospace', flexShrink: 0 }}>
-                  {selectedBp.downloads} cop{selectedBp.downloads !== 1 ? 'ies' : 'y'}
-                </span>
-              </div>
-
-              {/* item icons */}
-              {selectedBp.item_ids.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {selectedBp.item_ids.map(id => {
-                    const name = recipes.find(r => r.id === id)?.name ?? id
-                    return (
-                      <div key={id} style={{
+                {/* ── left: preview + primary actions ── */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+                  <div style={{ position: 'relative' }}>
+                    {selectedBp.image_url && !imageFailed && !forceCanvas ? (
+                      <img
+                        src={selectedBp.image_url} alt=""
+                        style={{ width: '100%', borderRadius: 1, display: 'block', border: '1px solid var(--th-br)' }}
+                        onError={() => setImageFailed(true)}
+                      />
+                    ) : (
+                      <BlueprintPreview
+                        blueprintString={selectedBp.blueprint_string ?? undefined}
+                        stringUrl={selectedBp.string_url ?? undefined}
+                        maxW={isMobile ? 320 : 480}
+                        maxH={isMobile ? 220 : 340}
+                        zoomable
+                        onStats={setPreviewStats}
+                        bookIndex={selectedBp.type === 'blueprint_book' ? selectedBookIndex : undefined}
+                      />
+                    )}
+                    <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }}>
+                      <TypeBadge bp={selectedBp} />
+                    </div>
+                    {previewStats && !(selectedBp.image_url && !imageFailed && !forceCanvas) && (
+                      <div style={{
+                        position: 'absolute', bottom: 8, left: 8, zIndex: 2,
                         display: 'flex', alignItems: 'center', gap: 5,
-                        background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1, padding: '3px 8px',
+                        background: 'rgba(12,12,18,0.82)', border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: 2, padding: '2px 7px', backdropFilter: 'blur(6px)',
+                        color: 'var(--th-tx-vmut)', fontSize: 9, fontFamily: MONO_FONT,
                       }}>
-                        <div style={{ width: 16, height: 16, overflow: 'hidden', flexShrink: 0 }}>
-                          <img src={`/icons/${id}.png`} alt="" style={{ height: 16, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
-                            onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }} />
-                        </div>
-                        <span style={{ color: 'var(--th-tx)', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
+                        {previewStats.tilesW} × {previewStats.tilesH} tiles
                       </div>
-                    )
-                  })}
-                </div>
-              )}
+                    )}
+                    {forceCanvas && selectedBp.image_url && !imageFailed && (
+                      <button
+                        onClick={() => setForceCanvas(false)}
+                        style={{
+                          position: 'absolute', top: 8, right: 8, zIndex: 2,
+                          background: 'rgba(12,12,18,0.82)', border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: 2, padding: '2px 7px', cursor: 'pointer', backdropFilter: 'blur(6px)',
+                          color: 'var(--th-tx-vmut)', fontSize: 9, fontFamily: MONO_FONT,
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#FF9F1C')}
+                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-vmut)')}
+                      >
+                        ← Screenshot
+                      </button>
+                    )}
+                  </div>
 
-              {/* tags */}
-              {selectedBp.tags?.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {selectedBp.tags.map(tag => (
-                    <span
-                      key={tag}
-                      onClick={() => { setTagFilters(prev => { const s = new Set(prev); s.add(tag); return s }); setPageState('browse') }}
+                  {/* primary action */}
+                  <button
+                    onClick={() => handleCopy(selectedBp)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                      width: '100%', padding: '13px 16px',
+                      background: copied === selectedBp.id ? '#1a2a1a' : '#FF9F1C',
+                      border: `1px solid ${copied === selectedBp.id ? '#22c55e66' : '#FF9F1C'}`,
+                      borderRadius: 2, cursor: 'pointer',
+                      color: copied === selectedBp.id ? '#22c55e' : '#1a1410',
+                      fontSize: 14, fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
+                      letterSpacing: '0.05em', textTransform: 'uppercase',
+                      transition: 'filter 0.15s',
+                    }}
+                    onMouseEnter={e => { if (copied !== selectedBp.id) e.currentTarget.style.filter = 'brightness(1.08)' }}
+                    onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+                  >
+                    <span style={{ fontSize: 16 }}>{copied === selectedBp.id ? '✓' : '⧉'}</span>
+                    {copied === selectedBp.id ? 'Copied!' : 'Copy Blueprint String'}
+                  </button>
+
+                  {/* secondary actions */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <button
+                      onClick={e => handleUpvote(e, selectedBp)}
+                      title={voted.has(selectedBp.id) ? 'Already upvoted' : 'Upvote'}
                       style={{
-                        background: 'var(--th-bg-well)', border: '1px solid var(--th-br)',
-                        borderRadius: 1, padding: '2px 7px', cursor: 'pointer',
-                        color: 'var(--th-tx-vmut)', fontSize: 10,
-                        fontFamily: "'Titillium Web', sans-serif",
+                        padding: '9px 12px',
+                        background: voted.has(selectedBp.id) ? '#1a2a1a' : 'var(--th-bg-well)',
+                        border: `1px solid ${voted.has(selectedBp.id) ? '#22c55e44' : 'var(--th-br)'}`,
+                        borderRadius: 1, cursor: voted.has(selectedBp.id) ? 'default' : 'pointer',
+                        color: voted.has(selectedBp.id) ? '#22c55e' : 'var(--th-tx-sec)',
+                        fontSize: 12, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        transition: 'color 0.15s, border-color 0.15s',
                       }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#a855f744'; (e.currentTarget as HTMLElement).style.color = '#a855f7' }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--th-br)'; (e.currentTarget as HTMLElement).style.color = 'var(--th-tx-vmut)' }}
-                    >{tag}</span>
-                  ))}
+                      onMouseEnter={e => { if (!voted.has(selectedBp.id)) e.currentTarget.style.color = '#22c55e' }}
+                      onMouseLeave={e => { if (!voted.has(selectedBp.id)) e.currentTarget.style.color = 'var(--th-tx-sec)' }}
+                    >
+                      ▲ <span style={{ fontFamily: MONO_FONT }}>{selectedBp.upvotes} upvote{selectedBp.upvotes !== 1 ? 's' : ''}</span>
+                    </button>
+                    {(selectedBp.string_url || selectedBp.blueprint_string) && (
+                      <a
+                        href={selectedBp.string_url
+                          ? `https://fbe.teoxoy.com/?source=${selectedBp.string_url}`
+                          : 'https://fbe.teoxoy.com/'}
+                        target="_blank" rel="noopener noreferrer"
+                        onClick={!selectedBp.string_url ? e => {
+                          e.preventDefault()
+                          window.open('https://fbe.teoxoy.com/', '_blank')
+                          handleCopy(selectedBp)
+                        } : undefined}
+                        style={{
+                          padding: '9px 12px',
+                          background: 'var(--th-bg-well)', border: '1px solid var(--th-br)',
+                          borderRadius: 1, cursor: 'pointer',
+                          color: 'var(--th-tx-sec)', fontSize: 12,
+                          fontFamily: "'Titillium Web', sans-serif", fontWeight: 600,
+                          textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                          transition: 'color 0.15s, border-color 0.15s',
+                        }}
+                        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--th-tx)'; el.style.borderColor = 'var(--th-br-lt)' }}
+                        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--th-tx-sec)'; el.style.borderColor = 'var(--th-br)' }}
+                      >
+                        Open in FBE ↗
+                      </a>
+                    )}
+                  </div>
                 </div>
-              )}
 
-              {/* description */}
-              {selectedBp.description && (
-                <div style={{ color: 'var(--th-tx-sec)', fontSize: 12, lineHeight: 1.65, fontFamily: 'monospace', background: 'var(--th-bg-hdr)', padding: '10px 12px', borderRadius: 1, border: '1px solid var(--th-br)' }}>
-                  {selectedBp.description}
+                {/* ── right: spec panel ── */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <span style={{ width: 6, height: 6, background: '#FF9F1C', flexShrink: 0 }} />
+                      <span style={{
+                        color: 'var(--th-tx-vmut)', fontSize: 9, textTransform: 'uppercase',
+                        letterSpacing: '0.14em', fontFamily: MONO_FONT, fontWeight: 600,
+                      }}>
+                        {selectedBp.type === 'blueprint_book' ? `Blueprint · Book of ${selectedBp.blueprint_count ?? '?'}` : 'Blueprint'}
+                      </span>
+                    </div>
+                    <h1 style={{
+                      color: 'var(--th-tx)', fontSize: 22, fontWeight: 700,
+                      fontFamily: "'Titillium Web', sans-serif", lineHeight: 1.25, marginBottom: 10,
+                    }}>
+                      {selectedBp.name}
+                    </h1>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 14, rowGap: 5, fontSize: 11, fontFamily: MONO_FONT }}>
+                      <span style={{ color: 'var(--th-tx-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Designer</span>
+                      <span style={{ color: 'var(--th-tx-sec)' }}>{selectedBp.author}</span>
+                      <span style={{ color: 'var(--th-tx-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Published</span>
+                      <span style={{ color: 'var(--th-tx-sec)' }}>{fmtDate(selectedBp.created_at)}</span>
+                    </div>
+                  </div>
+
+                  {/* metric grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--th-br)', border: '1px solid var(--th-br)' }}>
+                    <Metric label="Total Pieces" value={previewStats ? previewStats.entityCount.toLocaleString() : '—'} />
+                    <Metric label="Dimensions" value={previewStats ? `${previewStats.tilesW} × ${previewStats.tilesH}` : '—'} />
+                    <Metric label="Copies" value={selectedBp.downloads.toLocaleString()} />
+                    <Metric label="Upvotes" value={selectedBp.upvotes.toLocaleString()} />
+                  </div>
+
+                  {/* produces */}
+                  {selectedBp.item_ids.length > 0 && (
+                    <div>
+                      <FieldLabel>Produces</FieldLabel>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {selectedBp.item_ids.map(id => {
+                          const name = recipes.find(r => r.id === id)?.name ?? id
+                          return (
+                            <div key={id} style={{
+                              display: 'flex', alignItems: 'center', gap: 5,
+                              background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1, padding: '3px 8px',
+                            }}>
+                              <div style={{ width: 16, height: 16, overflow: 'hidden', flexShrink: 0 }}>
+                                <img src={`/icons/${id}.png`} alt="" style={{ height: 16, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
+                                  onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }} />
+                              </div>
+                              <span style={{ color: 'var(--th-tx)', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* book contents */}
+                  {selectedBp.type === 'blueprint_book' && bookContents && bookContents.length > 0 && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <FieldLabel>Book Contents</FieldLabel>
+                        <span style={{ color: 'var(--th-tx-faint)', fontSize: 9, fontFamily: MONO_FONT, textTransform: 'uppercase' }}>
+                          {bookContents.length}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 200, overflowY: 'auto', border: '1px solid var(--th-br)' }}>
+                        {bookContents.map(entry => {
+                          const isActive = entry.index === selectedBookIndex && (forceCanvas || !selectedBp.image_url || imageFailed)
+                          return (
+                            <div
+                              key={entry.index}
+                              onClick={() => { setSelectedBookIndex(entry.index); setForceCanvas(true) }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 10, padding: '5px 8px', cursor: 'pointer',
+                                background: isActive ? 'rgba(255,159,28,0.1)' : 'var(--th-bg-well)',
+                                borderLeft: `2px solid ${isActive ? '#FF9F1C' : 'transparent'}`,
+                              }}
+                              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--th-bg-hover)' }}
+                              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'var(--th-bg-well)' }}
+                            >
+                              <span style={{ color: isActive ? '#FF9F1C' : 'var(--th-tx-faint)', fontFamily: MONO_FONT, fontSize: 9, minWidth: 16, textAlign: 'right', flexShrink: 0 }}>
+                                {entry.index + 1}
+                              </span>
+                              <span style={{ flex: 1, fontSize: 11, color: isActive ? 'var(--th-tx)' : 'var(--th-tx-sec)', fontFamily: "'Titillium Web', sans-serif", fontWeight: isActive ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {entry.label}
+                              </span>
+                              {selectedBp.string_url && (
+                                <a
+                                  href={`https://fbe.teoxoy.com/?source=${selectedBp.string_url}&index=${entry.index}`}
+                                  target="_blank" rel="noopener noreferrer"
+                                  onClick={e => e.stopPropagation()}
+                                  style={{ color: 'var(--th-tx-faint)', fontSize: 9, fontFamily: MONO_FONT, textDecoration: 'none', flexShrink: 0 }}
+                                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--th-tx-sec)')}
+                                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-faint)')}
+                                >
+                                  FBE ↗
+                                </a>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* classifiers */}
+                  {selectedBp.tags.length > 0 && (
+                    <div>
+                      <FieldLabel>Classifiers</FieldLabel>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {selectedBp.tags.map(tag => (
+                          <span
+                            key={tag}
+                            onClick={() => { setTagFilters(prev => { const s = new Set(prev); s.add(tag); return s }); goToBrowse() }}
+                            style={{
+                              background: 'var(--th-bg-well)', border: '1px solid var(--th-br)',
+                              borderRadius: 1, padding: '3px 8px', cursor: 'pointer',
+                              color: 'var(--th-tx-vmut)', fontSize: 9, textTransform: 'uppercase',
+                              letterSpacing: '0.03em', fontFamily: MONO_FONT,
+                              transition: 'color 0.12s, border-color 0.12s',
+                            }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#a855f744'; (e.currentTarget as HTMLElement).style.color = '#a855f7' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--th-br)'; (e.currentTarget as HTMLElement).style.color = 'var(--th-tx-vmut)' }}
+                          >{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* engineering notes */}
+                  {selectedBp.description && (
+                    <div>
+                      <FieldLabel>Engineering Notes</FieldLabel>
+                      <p style={{
+                        color: 'var(--th-tx-sec)', fontSize: 12, lineHeight: 1.7, fontFamily: MONO_FONT,
+                        whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0,
+                      }}>
+                        {selectedBp.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* source attribution */}
+                  {selectedBp.source_url && selectedBp.author === 'factorioprints' && (
+                    <div style={{
+                      background: 'rgba(96,165,250,0.05)',
+                      border: '1px solid rgba(96,165,250,0.18)',
+                      borderRadius: 2, padding: '10px 13px',
+                      fontSize: 11, fontFamily: MONO_FONT, color: 'var(--th-tx-vmut)',
+                      lineHeight: 1.6,
+                    }}>
+                      This blueprint was originally shared on{' '}
+                      <a
+                        href={selectedBp.source_url} target="_blank" rel="noopener noreferrer"
+                        style={{ color: '#60a5fa', textDecoration: 'none' }}
+                        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                      >factorioprints.com ↗</a>
+                      {' '}— visit the original post to see the author and full details.
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* screenshot from source */}
-              {selectedBp.image_url && (
-                <img
-                  src={selectedBp.image_url} alt=""
-                  style={{ width: '100%', borderRadius: 1, display: 'block' }}
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                />
-              )}
-
-              {/* preview */}
-              <BlueprintPreview blueprintString={selectedBp.blueprint_string} maxW={720} maxH={440} zoomable />
-
-              {/* stats + copy + upvote */}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={() => handleCopy(selectedBp)}
-                  style={{
-                    flex: 1, padding: '8px 12px',
-                    background: copied === selectedBp.id ? '#1a2a1a' : 'var(--th-bg-well)',
-                    border: `1px solid ${copied === selectedBp.id ? '#22c55e44' : '#111'}`,
-                    borderRadius: 1, cursor: 'pointer',
-                    color: copied === selectedBp.id ? '#22c55e' : 'var(--th-tx-sec)',
-                    fontSize: 12, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600,
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={e => { if (copied !== selectedBp.id) e.currentTarget.style.color = 'var(--th-tx)' }}
-                  onMouseLeave={e => { if (copied !== selectedBp.id) e.currentTarget.style.color = 'var(--th-tx-sec)' }}
-                >
-                  {copied === selectedBp.id ? '✓ Copied!' : '⧉ Copy Blueprint String'}
-                </button>
-                <button
-                  onClick={e => handleUpvote(e, selectedBp)}
-                  title={voted.has(selectedBp.id) ? 'Already upvoted' : 'Upvote'}
-                  style={{
-                    flexShrink: 0, padding: '8px 16px',
-                    background: voted.has(selectedBp.id) ? '#1a2a1a' : 'var(--th-bg-well)',
-                    border: `1px solid ${voted.has(selectedBp.id) ? '#22c55e44' : '#111'}`,
-                    borderRadius: 1, cursor: voted.has(selectedBp.id) ? 'default' : 'pointer',
-                    color: voted.has(selectedBp.id) ? '#22c55e' : 'var(--th-tx-vmut)',
-                    fontSize: 12, display: 'flex', alignItems: 'center', gap: 6,
-                  }}
-                  onMouseEnter={e => { if (!voted.has(selectedBp.id)) e.currentTarget.style.color = '#22c55e' }}
-                  onMouseLeave={e => { if (!voted.has(selectedBp.id)) e.currentTarget.style.color = 'var(--th-tx-vmut)' }}
-                >
-                  ▲ <span style={{ fontFamily: 'monospace' }}>{selectedBp.upvotes}</span>
-                </button>
               </div>
-
-              {/* source attribution */}
-              {selectedBp.source_url && (
-                <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--th-tx-vmut)' }}>
-                  Originally from{' '}
-                  <a
-                    href={selectedBp.source_url} target="_blank" rel="noopener noreferrer"
-                    style={{ color: '#60a5fa', textDecoration: 'none' }}
-                  >factorioprints.com ↗</a>
-                </div>
-              )}
 
               {/* ── comments ── */}
-              <div>
+              <div style={{ marginTop: 36, paddingTop: 20, borderTop: '1px solid var(--th-br-hdr)', maxWidth: 720 }}>
                 <div style={{
                   color: 'var(--th-tx-vmut)', fontSize: 9, textTransform: 'uppercase',
                   letterSpacing: '0.12em', fontFamily: "'Titillium Web', sans-serif",
-                  fontWeight: 700, marginBottom: 10, paddingBottom: 6,
-                  borderBottom: '1px solid var(--th-br-hdr)',
+                  fontWeight: 700, marginBottom: 12,
                 }}>
                   Comments {comments.length > 0 && `· ${comments.length}`}
                 </div>
 
                 {commentsLoading && (
-                  <div style={{ color: 'var(--th-tx-vmut)', fontSize: 10, fontFamily: 'monospace', marginBottom: 10 }}>Loading…</div>
+                  <div style={{ color: 'var(--th-tx-vmut)', fontSize: 10, fontFamily: MONO_FONT, marginBottom: 10 }}>Loading…</div>
                 )}
 
                 {!commentsLoading && comments.length === 0 && (
-                  <div style={{ color: 'var(--th-tx-faint)', fontSize: 10, fontFamily: 'monospace', marginBottom: 12 }}>
+                  <div style={{ color: 'var(--th-tx-faint)', fontSize: 10, fontFamily: MONO_FONT, marginBottom: 12 }}>
                     No comments yet — share an improvement idea!
                   </div>
                 )}
 
                 {comments.map(c => (
                   <div key={c.id} style={{
-                    padding: '8px 10px', marginBottom: 6,
-                    background: 'var(--th-bg-hdr)', border: '1px solid var(--th-br)', borderRadius: 1,
+                    padding: '10px 12px', marginBottom: 6,
+                    borderLeft: '2px solid var(--th-br-lt)', background: 'var(--th-bg-hdr)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ color: 'var(--th-tx-sec)', fontSize: 11, fontWeight: 700, fontFamily: "'Titillium Web', sans-serif" }}>
                         {c.author}
                       </span>
-                      <span style={{ color: 'var(--th-tx-faint)', fontSize: 9, fontFamily: 'monospace' }}>
+                      <span style={{ color: 'var(--th-tx-faint)', fontSize: 9, fontFamily: MONO_FONT }}>
                         {fmtDate(c.created_at)}
                       </span>
                     </div>
-                    <div style={{ color: 'var(--th-tx-sec)', fontSize: 11, fontFamily: 'monospace', lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    <div style={{ color: 'var(--th-tx-sec)', fontSize: 11, fontFamily: MONO_FONT, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                       {c.body}
                     </div>
                   </div>
@@ -1120,13 +1460,13 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
                       background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1,
                       boxShadow: 'var(--shadow-inset)',
                       color: 'var(--th-tx)', fontSize: 11, padding: '7px 10px', outline: 'none',
-                      fontFamily: 'monospace', resize: 'vertical', marginBottom: 6,
+                      fontFamily: MONO_FONT, resize: 'vertical', marginBottom: 6,
                     }}
                     onFocus={e => (e.currentTarget.style.borderColor = '#FF9F1C66')}
                     onBlur={e => (e.currentTarget.style.borderColor = 'var(--th-br)')}
                   />
                   {commentError && (
-                    <div style={{ color: '#ef4444', fontSize: 10, marginBottom: 6, fontFamily: 'monospace' }}>{commentError}</div>
+                    <div style={{ color: '#ef4444', fontSize: 10, marginBottom: 6, fontFamily: MONO_FONT }}>{commentError}</div>
                   )}
                   <button
                     onClick={() => requireUsername(() => handlePostComment())}
@@ -1164,47 +1504,57 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
 
 // ── browse card ───────────────────────────────────────────────────────────────
 
-function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote, onTagClick }: {
+const BrowseCard = memo(function BrowseCard({ bp, isCopied, isVoted, openDetail, onCopy, onUpvote, onTagClick }: {
   bp: Blueprint
-  copied: string | null
-  voted: Set<string>
-  onOpen: () => void
+  isCopied: boolean
+  isVoted: boolean
+  openDetail: (bp: Blueprint) => void
   onCopy: (bp: Blueprint) => void
   onUpvote: (e: React.MouseEvent, bp: Blueprint) => void
   onTagClick: (tag: string) => void
 }) {
   return (
     <div
-      onClick={onOpen}
+      onClick={() => openDetail(bp)}
       style={{
         background: 'var(--th-bg-surf)', border: '1px solid var(--th-br-sep)',
-        borderRadius: 3, cursor: 'pointer', display: 'flex', flexDirection: 'column',
-        overflow: 'hidden', transition: 'border-color 0.15s, box-shadow 0.15s',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
+        borderRadius: 2, cursor: 'pointer', display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+        transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.15s',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        willChange: 'transform',
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#FF9F1C55'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.5)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--th-br-sep)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.35)' }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = 'rgba(255,159,28,0.3)'
+        e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.5)'
+        e.currentTarget.style.transform = 'translateY(-2px)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--th-br-sep)'
+        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)'
+        e.currentTarget.style.transform = 'translateY(0)'
+      }}
+      onMouseDown={e => { e.currentTarget.style.transform = 'translateY(0) scale(0.985)' }}
+      onMouseUp={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
     >
       {/* ── preview hero ── */}
-      <div style={{ position: 'relative', height: 170, overflow: 'hidden', background: 'var(--th-bg-deep)', flexShrink: 0 }}>
-        {/* type badge overlay */}
+      <div style={{ position: 'relative', height: 190, overflow: 'hidden', background: 'var(--th-bg-deep)', flexShrink: 0 }}>
         <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }}>
           <TypeBadge bp={bp} />
         </div>
-        {/* source link overlay */}
         {bp.source_url && (
           <a
             href={bp.source_url} target="_blank" rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
             style={{
               position: 'absolute', top: 8, right: 8, zIndex: 2,
-              background: 'rgba(20,20,28,0.88)', border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(12,12,18,0.82)', border: '1px solid rgba(255,255,255,0.08)',
               borderRadius: 2, padding: '2px 6px',
               color: '#60a5fa', fontSize: 9, fontFamily: 'monospace', textDecoration: 'none',
-              backdropFilter: 'blur(4px)',
+              backdropFilter: 'blur(6px)',
             }}
           >
-            ↗ source
+            ↗
           </a>
         )}
         {bp.image_url ? (
@@ -1214,137 +1564,109 @@ function BrowseCard({ bp, copied, voted, onOpen, onCopy, onUpvote, onTagClick }:
             onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
           />
         ) : (
-          <BlueprintPreview blueprintString={bp.blueprint_string} maxW={300} maxH={170} />
+          <div style={{
+            width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundImage: 'radial-gradient(circle, var(--th-dot) 1px, transparent 1px)',
+            backgroundSize: '18px 18px',
+          }}>
+            <span style={{ color: 'var(--th-tx-faint)', fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>no image</span>
+          </div>
         )}
       </div>
 
       {/* ── card body ── */}
-      <div style={{ padding: '10px 12px 8px', flex: 1 }}>
+      <div style={{ padding: '11px 13px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {/* title */}
         <div style={{
           color: 'var(--th-tx)', fontSize: 13, fontWeight: 700,
-          fontFamily: "'Titillium Web', sans-serif", lineHeight: 1.3,
+          fontFamily: "'Titillium Web', sans-serif", lineHeight: 1.35,
           overflow: 'hidden', display: '-webkit-box',
           WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-          marginBottom: 7,
         }}>
           {bp.name}
         </div>
 
-        {/* item icons */}
-        {bp.item_ids.length > 0 && (
-          <div style={{ display: 'flex', gap: 3, marginBottom: 7, flexWrap: 'wrap' }}>
-            {bp.item_ids.slice(0, 6).map(id => (
-              <div key={id} title={recipes.find(r => r.id === id)?.name ?? id} style={{
-                width: 22, height: 22, background: 'var(--th-bg-well)', border: '1px solid var(--th-br)',
-                overflow: 'hidden', flexShrink: 0,
-                boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.5)',
-              }}>
-                <img
-                  src={`/icons/${id}.png`} alt=""
-                  style={{ height: 22, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
-                  onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.opacity = '0' }}
-                />
-              </div>
-            ))}
-            {bp.item_ids.length > 6 && (
-              <span style={{ color: 'var(--th-tx-faint)', fontSize: 9, fontFamily: 'monospace', alignSelf: 'center' }}>
-                +{bp.item_ids.length - 6}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* author + date */}
-        <div style={{ color: 'var(--th-tx-vmut)', fontSize: 10, fontFamily: 'monospace', marginBottom: 6 }}>
-          {bp.author} · {fmtDate(bp.created_at)}
-        </div>
-
-        {/* description */}
-        {bp.description && (
-          <div style={{
-            color: 'var(--th-tx-mut)', fontSize: 10, lineHeight: 1.45, fontFamily: 'monospace',
-            overflow: 'hidden', display: '-webkit-box',
-            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-            marginBottom: 7,
-          }}>
-            {bp.description}
-          </div>
-        )}
-
         {/* tags */}
-        {bp.tags?.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-            {bp.tags.slice(0, 4).map(tag => (
+        {bp.tags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {bp.tags.slice(0, 2).map(tag => (
               <span
                 key={tag}
                 onClick={e => { e.stopPropagation(); onTagClick(tag) }}
                 style={{
-                  background: 'var(--th-bg-well)', border: '1px solid var(--th-br)',
-                  borderRadius: 2, padding: '1px 6px', cursor: 'pointer',
-                  color: 'var(--th-tx-vmut)', fontSize: 9,
+                  background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.22)',
+                  borderRadius: 2, padding: '2px 7px', cursor: 'pointer',
+                  color: 'var(--th-tx-sec)', fontSize: 9,
                   fontFamily: "'Titillium Web', sans-serif",
-                  transition: 'color 0.1s, border-color 0.1s',
+                  transition: 'color 0.12s, border-color 0.12s, background 0.12s',
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#a855f766'; (e.currentTarget as HTMLElement).style.color = '#a855f7' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--th-br)'; (e.currentTarget as HTMLElement).style.color = 'var(--th-tx-vmut)' }}
+                onMouseEnter={e => {
+                  const el = e.currentTarget as HTMLElement
+                  el.style.borderColor = '#a855f755'
+                  el.style.color = '#a855f7'
+                  el.style.background = 'rgba(168,85,247,0.12)'
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget as HTMLElement
+                  el.style.borderColor = 'rgba(168,85,247,0.22)'
+                  el.style.color = 'var(--th-tx-sec)'
+                  el.style.background = 'rgba(168,85,247,0.07)'
+                }}
               >{tag}</span>
             ))}
+            {bp.tags.length > 2 && (
+              <span style={{ color: 'var(--th-tx-faint)', fontSize: 9, fontFamily: 'monospace', alignSelf: 'center' }}>
+                +{bp.tags.length - 2}
+              </span>
+            )}
           </div>
         )}
       </div>
 
       {/* ── card footer ── */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '7px 12px 8px',
-        borderTop: '1px solid var(--th-br-sep)',
-        background: 'rgba(0,0,0,0.15)',
+        display: 'flex', alignItems: 'center',
+        padding: '8px 13px 9px',
+        borderTop: '1px solid rgba(255,255,255,0.04)',
+        background: 'rgba(0,0,0,0.18)',
       }}>
-        {/* upvote */}
         <button
           onClick={e => onUpvote(e, bp)}
-          title={voted.has(bp.id) ? 'Already upvoted' : 'Upvote'}
+          title={isVoted ? 'Already upvoted' : 'Upvote'}
           style={{
             display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
-            background: voted.has(bp.id) ? 'rgba(34,197,94,0.12)' : 'none',
-            border: `1px solid ${voted.has(bp.id) ? '#22c55e33' : 'transparent'}`,
-            borderRadius: 2, cursor: voted.has(bp.id) ? 'default' : 'pointer',
-            color: voted.has(bp.id) ? '#22c55e' : 'var(--th-tx-vmut)',
-            fontSize: 10, padding: '2px 6px',
+            background: 'none', border: 'none',
+            cursor: isVoted ? 'default' : 'pointer',
+            color: isVoted ? '#22c55e' : 'var(--th-tx-sec)',
+            fontSize: 11, padding: '2px 0',
             fontFamily: 'monospace',
+            transition: 'color 0.12s',
           }}
-          onMouseEnter={e => { if (!voted.has(bp.id)) e.currentTarget.style.color = '#22c55e' }}
-          onMouseLeave={e => { if (!voted.has(bp.id)) e.currentTarget.style.color = 'var(--th-tx-vmut)' }}
+          onMouseEnter={e => { if (!isVoted) e.currentTarget.style.color = '#22c55e' }}
+          onMouseLeave={e => { if (!isVoted) e.currentTarget.style.color = 'var(--th-tx-sec)' }}
         >
           ▲ {bp.upvotes}
         </button>
 
-        {/* downloads */}
-        <span style={{ color: 'var(--th-tx-faint)', fontSize: 10, fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 3 }}>
-          ↓ {bp.downloads}
-        </span>
-
         <div style={{ flex: 1 }} />
 
-        {/* copy */}
         <button
           onClick={e => { e.stopPropagation(); onCopy(bp) }}
           style={{
-            padding: '3px 10px', flexShrink: 0,
-            background: copied === bp.id ? 'rgba(34,197,94,0.12)' : 'var(--th-bg-well)',
-            border: `1px solid ${copied === bp.id ? '#22c55e44' : 'var(--th-br)'}`,
+            padding: '4px 11px', flexShrink: 0,
+            background: isCopied ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${isCopied ? '#22c55e33' : 'rgba(255,255,255,0.08)'}`,
             borderRadius: 2, cursor: 'pointer',
-            color: copied === bp.id ? '#22c55e' : 'var(--th-tx-sec)',
+            color: isCopied ? '#22c55e' : 'var(--th-tx-sec)',
             fontSize: 10, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600,
-            letterSpacing: '0.03em', transition: 'all 0.15s',
+            letterSpacing: '0.04em', transition: 'all 0.15s',
           }}
-          onMouseEnter={e => { if (copied !== bp.id) e.currentTarget.style.color = 'var(--th-tx)' }}
-          onMouseLeave={e => { if (copied !== bp.id) e.currentTarget.style.color = 'var(--th-tx-sec)' }}
+          onMouseEnter={e => { if (!isCopied) { e.currentTarget.style.color = 'var(--th-tx)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)' } }}
+          onMouseLeave={e => { if (!isCopied) { e.currentTarget.style.color = 'var(--th-tx-sec)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' } }}
         >
-          {copied === bp.id ? '✓ Copied!' : '⧉ Copy'}
+          {isCopied ? '✓ Copied' : '⧉ Copy'}
         </button>
       </div>
     </div>
   )
-}
+})

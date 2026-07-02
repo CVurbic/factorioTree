@@ -2,20 +2,24 @@
  * Scrape blueprints from factorioprints.com via the public Firebase REST API.
  *
  * Usage:
- *   node --env-file=.env scripts/scrape-factorioprints.mjs [--limit N]
+ *   node --env-file=.env.local scripts/scrape-factorioprints.mjs [--limit N]
  *
- * .env must contain:
- *   SUPABASE_URL=https://xxxx.supabase.co
- *   SUPABASE_KEY=your-anon-or-service-role-key
+ * .env.local must contain:
+ *   VITE_SUPABASE_URL=https://xxxx.supabase.co
+ *   VITE_SUPABASE_KEY=your-anon-or-service-role-key
  *
  * --limit N   Stop after importing N blueprints (default: no limit)
  */
 
 import { createClient } from '@supabase/supabase-js'
 import { inflateSync } from 'zlib'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_KEY ?? process.env.VITE_SUPABASE_KEY
+const R2_ENDPOINT   = process.env.R2_ENDPOINT
+const R2_BUCKET     = process.env.R2_BUCKET ?? 'factorio'
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL
 const FIREBASE = 'https://facorio-blueprints.firebaseio.com'
 const BATCH_SIZE = 100
 const BATCH_DELAY_MS = 500
@@ -26,11 +30,26 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   process.exit(1)
 }
 
+const s3 = R2_ENDPOINT ? new S3Client({
+  region: 'auto',
+  endpoint: R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+  },
+}) : null
+
+async function uploadToR2(key, content) {
+  if (!s3) return null
+  await s3.send(new PutObjectCommand({ Bucket: R2_BUCKET, Key: key, Body: content, ContentType: 'text/plain' }))
+  return `${R2_PUBLIC_URL}/${key}`
+}
+
 const args = process.argv.slice(2)
 const limitIdx = args.indexOf('--limit')
 const LIMIT = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : Infinity
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { db: { schema: 'factorio' } })
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
@@ -43,9 +62,8 @@ function trunc(val, max) {
 
 function extractTags(tags) {
   if (!tags) return []
-  if (Array.isArray(tags)) return tags.map(String).filter(Boolean)
-  if (typeof tags === 'object') return Object.values(tags).map(String).filter(Boolean)
-  return []
+  const raw = Array.isArray(tags) ? tags : typeof tags === 'object' ? Object.values(tags) : []
+  return raw.map(t => String(t).replace(/^\/|\/$/g, '').trim()).filter(Boolean)
 }
 
 function parseBlueprint(str) {
@@ -55,17 +73,22 @@ function parseBlueprint(str) {
     try { json = JSON.parse(inflateSync(buf).toString('utf8')) }
     catch { json = JSON.parse(inflateSync(buf, { windowBits: -15 }).toString('utf8')) }
     const itemIds = new Set()
+    const subNames = []
     function walk(obj) {
       for (const e of obj?.blueprint?.entities ?? []) {
         if (e.recipe) itemIds.add(e.recipe)
       }
-      for (const b of obj?.blueprint_book?.blueprints ?? []) walk(b)
+      for (const b of obj?.blueprint_book?.blueprints ?? []) {
+        const label = b.blueprint?.label ?? b.blueprint_book?.label
+        if (label) subNames.push(label)
+        walk(b)
+      }
     }
     walk(json)
     if (json.blueprint_book) {
-      return { type: 'blueprint_book', blueprint_count: json.blueprint_book.blueprints?.length ?? null, item_ids: [...itemIds] }
+      return { type: 'blueprint_book', blueprint_count: json.blueprint_book.blueprints?.length ?? null, item_ids: [...itemIds], sub_blueprint_names: subNames }
     }
-    return { type: 'blueprint', blueprint_count: null, item_ids: [...itemIds] }
+    return { type: 'blueprint', blueprint_count: null, item_ids: [...itemIds], sub_blueprint_names: [] }
   } catch { return null }
 }
 
@@ -113,17 +136,26 @@ outer: while (true) {
     const parsed = parseBlueprint(bpStr)
     if (!parsed) { totalSkip++; continue }
 
+    let string_url = null
+    try {
+      string_url = await uploadToR2(`factorioprints/${id}.txt`, bpStr)
+    } catch (e) {
+      process.stdout.write(`(R2 fail: ${e.message}) `)
+    }
+
     const row = {
       name,
       description: trunc(bp.descriptionMarkdown, 300),
       author: 'factorioprints',
-      blueprint_string: bpStr,
+      upvotes: bp.numberOfFavorites ?? 0,
       item_ids: parsed.item_ids,
       type: parsed.type,
       blueprint_count: parsed.blueprint_count,
       source_url: `https://www.factorioprints.com/view/${id}`,
       image_url: bp.imageUrl ?? null,
+      string_url,
       tags: extractTags(bp.tags),
+      sub_blueprint_names: parsed.sub_blueprint_names,
     }
 
     process.stdout.write(`  ${name.slice(0, 48).padEnd(48)} … `)

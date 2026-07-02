@@ -3,16 +3,14 @@ import { createClient } from '@supabase/supabase-js'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY as string
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  db: { schema: 'factorio' },
-})
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 export interface Blueprint {
   id: string
   name: string
   description: string | null
   author: string
-  blueprint_string: string
+  blueprint_string: string | null
   item_ids: string[]
   type: 'blueprint' | 'blueprint_book'
   blueprint_count: number | null
@@ -21,7 +19,9 @@ export interface Blueprint {
   created_at: string
   source_url: string | null
   image_url: string | null
+  string_url: string | null
   tags: string[]
+  sub_blueprint_names: string[]
 }
 
 export interface Comment {
