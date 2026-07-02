@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { supabase, type Blueprint, type Comment } from '../lib/supabase'
 import { recipes } from '../data/recipes-generated'
 import { BlueprintPreview } from './BlueprintPreview'
@@ -114,6 +115,87 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
       fontFamily: "'Titillium Web', sans-serif", fontWeight: 700,
     }}>
       {children}
+    </div>
+  )
+}
+
+const PRODUCES_LIMIT = 12
+
+function ProducesSection({ itemIds }: { itemIds: string[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const visible = expanded ? itemIds : itemIds.slice(0, PRODUCES_LIMIT)
+  const hidden = itemIds.length - PRODUCES_LIMIT
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <FieldLabel>Produces</FieldLabel>
+        {hidden > 0 && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              color: 'var(--th-tx-vmut)', fontSize: 9, fontFamily: "'Titillium Web', sans-serif",
+              fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#FF9F1C')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--th-tx-vmut)')}
+          >
+            {expanded ? 'Show less' : `+${hidden} more`}
+          </button>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {visible.map(id => {
+          const name = recipes.find(r => r.id === id)?.name ?? id
+          return (
+            <div key={id} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1, padding: '3px 8px',
+            }}>
+              <div style={{ width: 16, height: 16, overflow: 'hidden', flexShrink: 0 }}>
+                <img src={`/icons/${id}.png`} alt="" style={{ height: 16, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
+                  onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }} />
+              </div>
+              <span style={{ color: 'var(--th-tx)', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function BlueprintMarkdown({ text }: { text: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, color: 'var(--th-tx-sec)', fontSize: 13, lineHeight: 1.75, fontFamily: MONO_FONT, wordBreak: 'break-word' }}>
+      <ReactMarkdown
+        components={{
+          p: ({ children }) => <p style={{ margin: 0 }}>{children}</p>,
+          a: ({ children, href }) => (
+            <a
+              href={href} target="_blank" rel="noopener noreferrer"
+              style={{ color: '#60a5fa', textDecoration: 'none' }}
+              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+            >{children}</a>
+          ),
+          code: ({ children }) => (
+            <code style={{ background: 'var(--th-bg-well)', padding: '1px 5px', borderRadius: 2, fontSize: 11 }}>{children}</code>
+          ),
+          h1: ({ children }) => <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--th-tx)', marginTop: 4 }}>{children}</div>,
+          h2: ({ children }) => <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--th-tx)', marginTop: 4 }}>{children}</div>,
+          h3: ({ children }) => <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--th-tx)', marginTop: 4 }}>{children}</div>,
+          ul: ({ children }) => <ul style={{ paddingLeft: 20, margin: 0 }}>{children}</ul>,
+          ol: ({ children }) => <ol style={{ paddingLeft: 20, margin: 0 }}>{children}</ol>,
+          hr: () => <hr style={{ border: 'none', borderTop: '1px solid var(--th-br)', margin: '4px 0' }} />,
+          blockquote: ({ children }) => (
+            <blockquote style={{ margin: 0, paddingLeft: 10, borderLeft: '2px solid var(--th-br-lt)', color: 'var(--th-tx-vmut)' }}>{children}</blockquote>
+          ),
+        }}
+      >
+        {text}
+      </ReactMarkdown>
     </div>
   )
 }
@@ -1277,26 +1359,7 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
 
                   {/* produces */}
                   {selectedBp.item_ids.length > 0 && (
-                    <div>
-                      <FieldLabel>Produces</FieldLabel>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                        {selectedBp.item_ids.map(id => {
-                          const name = recipes.find(r => r.id === id)?.name ?? id
-                          return (
-                            <div key={id} style={{
-                              display: 'flex', alignItems: 'center', gap: 5,
-                              background: 'var(--th-bg-well)', border: '1px solid var(--th-br)', borderRadius: 1, padding: '3px 8px',
-                            }}>
-                              <div style={{ width: 16, height: 16, overflow: 'hidden', flexShrink: 0 }}>
-                                <img src={`/icons/${id}.png`} alt="" style={{ height: 16, width: 'auto', maxWidth: 'none', imageRendering: 'pixelated', display: 'block' }}
-                                  onError={e => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = 'none' }} />
-                              </div>
-                              <span style={{ color: 'var(--th-tx)', fontSize: 11, fontFamily: "'Titillium Web', sans-serif", fontWeight: 600 }}>{name}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
+                    <ProducesSection itemIds={selectedBp.item_ids} />
                   )}
 
                   {/* book contents */}
@@ -1372,19 +1435,6 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
                     </div>
                   )}
 
-                  {/* engineering notes */}
-                  {selectedBp.description && (
-                    <div>
-                      <FieldLabel>Engineering Notes</FieldLabel>
-                      <p style={{
-                        color: 'var(--th-tx-sec)', fontSize: 12, lineHeight: 1.7, fontFamily: MONO_FONT,
-                        whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0,
-                      }}>
-                        {selectedBp.description}
-                      </p>
-                    </div>
-                  )}
-
                   {/* source attribution */}
                   {selectedBp.source_url && selectedBp.author === 'factorioprints' && (
                     <div style={{
@@ -1406,6 +1456,14 @@ export function BlueprintsPage({ initialSearch = '', isMobile = false }: { initi
                   )}
                 </div>
               </div>
+
+              {/* ── engineering notes (full width) ── */}
+              {selectedBp.description && (
+                <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--th-br-hdr)' }}>
+                  <FieldLabel>Engineering Notes</FieldLabel>
+                  <BlueprintMarkdown text={selectedBp.description} />
+                </div>
+              )}
 
               {/* ── comments ── */}
               <div style={{ marginTop: 36, paddingTop: 20, borderTop: '1px solid var(--th-br-hdr)', maxWidth: 720 }}>

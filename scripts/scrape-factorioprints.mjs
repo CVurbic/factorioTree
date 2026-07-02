@@ -145,7 +145,7 @@ outer: while (true) {
 
     const row = {
       name,
-      description: trunc(bp.descriptionMarkdown, 300),
+      description: trunc(bp.descriptionMarkdown, 5000),
       author: 'factorioprints',
       upvotes: bp.numberOfFavorites ?? 0,
       item_ids: parsed.item_ids,
