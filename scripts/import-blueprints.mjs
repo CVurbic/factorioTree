@@ -2,11 +2,11 @@
  * Import blueprints from factoriobin.com into Supabase by post ID.
  *
  * Usage:
- *   node --env-file=.env scripts/import-blueprints.mjs <id1> <id2> ...
+ *   node --env-file=.env.local scripts/import-blueprints.mjs <id1> <id2> ...
  *
- * .env must contain:
- *   SUPABASE_URL=https://xxxx.supabase.co
- *   SUPABASE_KEY=your-anon-or-service-role-key
+ * .env.local must contain:
+ *   VITE_SUPABASE_URL=https://xxxx.supabase.co
+ *   VITE_SUPABASE_KEY=your-anon-or-service-role-key
  *
  * Factoriobin IDs come from post URLs: factoriobin.com/post/<id>
  * Collect IDs manually from Reddit, Discord, or community wikis.
@@ -29,11 +29,11 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const ids = process.argv.slice(2)
 if (ids.length === 0) {
-  console.error('Usage: node --env-file=.env scripts/import-blueprints.mjs <id1> <id2> ...')
+  console.error('Usage: node --env-file=.env.local scripts/import-blueprints.mjs <id1> <id2> ...')
   process.exit(1)
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { db: { schema: 'factorio' } })
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
@@ -102,10 +102,14 @@ async function importOne(id) {
     name,
     description: trunc(info.node?.description, 300),
     author: trunc(info.post.postedBy?.username ?? 'factoriobin', 40),
-    blueprint_string: bpStr,
     item_ids: parsed.item_ids,
     type: parsed.type,
     blueprint_count: parsed.blueprint_count,
+    source_url: `${FACTORIOBIN}/post/${id}`,
+    image_url: info.node?.imageUrl ?? info.post?.imageUrl ?? null,
+    upvotes: info.post?.totalVotes ?? info.post?.votes ?? 0,
+    downloads: info.post?.views ?? 0,
+    tags: info.node?.tags ?? [],
   }
 
   const { error } = await supabase.from('blueprints').insert(row)

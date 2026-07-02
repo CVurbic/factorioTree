@@ -106,13 +106,14 @@ async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
   throw new Error('inflate failed')
 }
 
-function extractEntities(json: Record<string, unknown>): Entity[] {
+function extractEntities(json: Record<string, unknown>, bookIndex?: number): Entity[] {
   const bp = json.blueprint as { entities?: Entity[] } | undefined
   if (bp?.entities?.length) return bp.entities
   const book = json.blueprint_book as {
     blueprints?: { blueprint?: { entities?: Entity[] } }[]
   } | undefined
   if (book?.blueprints) {
+    if (bookIndex != null) return book.blueprints[bookIndex]?.blueprint?.entities ?? []
     for (const item of book.blueprints) {
       const ents = item.blueprint?.entities
       if (ents?.length) return ents
@@ -121,13 +122,13 @@ function extractEntities(json: Record<string, unknown>): Entity[] {
   return []
 }
 
-async function decode(str: string): Promise<Entity[]> {
+async function decode(str: string, bookIndex?: number): Promise<Entity[]> {
   const binary = atob(str.slice(1))
   const bytes  = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
   const buf  = await inflate(bytes)
   const json = JSON.parse(new TextDecoder().decode(buf)) as Record<string, unknown>
-  return extractEntities(json)
+  return extractEntities(json, bookIndex)
 }
 
 // ── Tile size (handles direction-dependent sizes like splitters) ──────────────
@@ -307,13 +308,16 @@ function drawScene(
 // ── Component ──────────────────────────────────────────────────────────────────
 
 interface Props {
-  blueprintString: string
+  blueprintString?: string
+  stringUrl?: string
   maxW?: number
   maxH?: number
   zoomable?: boolean
+  onStats?: (stats: { entityCount: number; tilesW: number; tilesH: number }) => void
+  bookIndex?: number
 }
 
-export function BlueprintPreview({ blueprintString, maxW = 258, maxH = 220, zoomable = false }: Props) {
+export function BlueprintPreview({ blueprintString, stringUrl, maxW = 258, maxH = 220, zoomable = false, onStats, bookIndex }: Props) {
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const renderRef    = useRef<RenderData | null>(null)
@@ -342,13 +346,21 @@ export function BlueprintPreview({ blueprintString, maxW = 258, maxH = 220, zoom
 
   // Phase 1: decode + load images (once per blueprint)
   useEffect(() => {
+    if (!blueprintString && !stringUrl) { setStatus('empty'); return }
     let cancelled = false
     setStatus('loading')
     renderRef.current = null
 
     ;(async () => {
       try {
-        const [entities, manifest] = await Promise.all([decode(blueprintString), loadManifest()])
+        let str = blueprintString
+        if (!str) {
+          const res = await fetch(stringUrl!)
+          if (cancelled) return
+          if (!res.ok) throw new Error('fetch failed')
+          str = (await res.text()).trim()
+        }
+        const [entities, manifest] = await Promise.all([decode(str!, bookIndex), loadManifest()])
         if (cancelled) return
         if (!entities.length) { setStatus('empty'); return }
 
@@ -356,11 +368,21 @@ export function BlueprintPreview({ blueprintString, maxW = 258, maxH = 220, zoom
         const tops   = entities.map(e => e.position.y - entityTileSize(e.name, e.direction)[1] / 2)
         const rights = entities.map(e => e.position.x + entityTileSize(e.name, e.direction)[0] / 2)
         const bots   = entities.map(e => e.position.y + entityTileSize(e.name, e.direction)[1] / 2)
-        const minX    = Math.min(...lefts)  - PAD
-        const minY    = Math.min(...tops)   - PAD
-        const boundsW = Math.max(...rights) + PAD - minX
-        const boundsH = Math.max(...bots)   + PAD - minY
+        const leftMin  = Math.min(...lefts)
+        const topMin   = Math.min(...tops)
+        const rightMax = Math.max(...rights)
+        const botMax   = Math.max(...bots)
+        const minX    = leftMin - PAD
+        const minY    = topMin - PAD
+        const boundsW = rightMax + PAD - minX
+        const boundsH = botMax + PAD - minY
         const baseTileSize = Math.max(MIN_TILE, Math.min(MAX_TILE, maxW / boundsW, maxH / boundsH))
+
+        onStats?.({
+          entityCount: entities.length,
+          tilesW: Math.round(rightMax - leftMin),
+          tilesH: Math.round(botMax - topMin),
+        })
 
         const needed = new Set<string>()
         const fallbackNeeded = new Set<string>()
@@ -389,7 +411,7 @@ export function BlueprintPreview({ blueprintString, maxW = 258, maxH = 220, zoom
     })()
 
     return () => { cancelled = true }
-  }, [blueprintString]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [blueprintString, stringUrl, bookIndex]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Phase 2: redraw on zoom/offset/status change
   useEffect(() => {
@@ -460,6 +482,7 @@ export function BlueprintPreview({ blueprintString, maxW = 258, maxH = 220, zoom
     })
   }, [maxW, maxH])
 
+  if (!blueprintString && !stringUrl) return null
   if (status === 'loading') return <StatusBox maxW={zoomable ? maxW : undefined}>...</StatusBox>
   if (status === 'error')   return <StatusBox maxW={zoomable ? maxW : undefined}>invalid blueprint</StatusBox>
   if (status === 'empty')   return <StatusBox maxW={zoomable ? maxW : undefined}>no entities</StatusBox>

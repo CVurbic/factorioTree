@@ -1,0 +1,289 @@
+Systems Architecture of Factorio Blueprints: Mechanics, Data Structures, and Algorithmic Automation
+Conceptual Foundations and Library Databases
+The replication engine in Factorio is a highly integrated serialization system designed to decouple factory design from the mechanical constraints of manual assembly. By converting physical structures, tile layers, and logical configurations into standardized digital schematics, the system enables rapid scale transitions from micro-level component building to macro-level logistics planning.   
+
+At the baseline of this ecosystem are blueprints, deconstruction planners, and upgrade planners, which are managed via a centralized, profile-integrated database known as the Blueprint Library. This library is partitioned into two distinct database scopes that manage permissions, persistence, and synchronization differently depending on the play environment:   
+
+System Dimension	Personal Database ("My Blueprints")	Save-Bound Database ("Game Blueprints")
+Storage Scope	
+Linked to the global player profile across all offline saves.
+
+Bound directly to the internal state of a specific save file.
+
+Multiplayer Sharing	
+Private; completely hidden from other peers on the server.
+
+Shared dynamically across all players on the same cooperative force.
+
+Administrative Control	
+Modifiable only by the owning client profile.
+
+Modifiable by server administrators to regulate group layouts.
+
+Physical Vulnerability	
+Immune to in-world destruction events.
+
+Immune to in-world destruction events.
+
+Storage Constraints	
+Virtually unlimited; bypasses physical inventory slot restrictions.
+
+Virtually unlimited; bypasses physical inventory slot restrictions.
+
+  
+This database separation dictates how players interact with their designs. Storing a blueprint physically within an in-world container (such as a steel chest) exposes the item to destruction via biter attacks or vehicle collisions.   
+
+Conversely, the Blueprint Library acts as an abstract, protected inventory layer. When a user pins a library-stored blueprint or blueprint book to their quickbar, the game does not clone the item; instead, it establishes a functional pointer. Any structural, color, or textual modifications made to the active quickbar instance write directly back to the library's master copy.   
+
+To prevent unintended changes to master designs, the user must explicitly create a copy within the graphical user interface (GUI) to break the pointer connection.   
+
+For novice players, layout design should begin with highly cohesive, small-scale structural cells rather than complex, sprawling main buses. Best practices dictate designing and testing localized modules—such as a single mining column, a standardized smelter row, or a modular turret defensive unit—before copying them.   
+
+Placing a ghost template once and verifying its input-output alignments, power grid coverage, and physical boundaries ensures that errors do not multiply across thousands of deployed copies.   
+
+Data Structure, Serialization, and CLI Manipulation
+To enable easy sharing across external platforms and web databases, the game engine serializes complex layouts into high-density alphanumeric strings. This process relies on a strict compression and encoding pipeline:   
+
+Blueprint String=0x00∥Base64(zlib_deflate(JSON_Payload,level=9))
+The version byte at the front of the string is currently set to 0x00 for all versions through 2.0.   
+
+For external editing, automated generation, or scripting workflows, developers can bypass compression entirely. Starting in version 2.0, the game's parser can directly import uncompressed, raw JSON files, allowing for programmatic generation of complex layouts.   
+
+Additionally, compiled external utilities, such as the factorio-blueprint CLI tool, allow developers to programmatically edit layouts. Using these tools, developer scripts can automatically parse, modify, and re-serialize blueprints via command-line pipes, such as using jq filters to strip specific belt tiers from massive layouts:   
+
+Bash
+# Programmatic removal of belt entities using CLI tools and jq JSON parsers
+factorio-blueprint decode --file compact_mining.txt | \
+jq -c '.blueprint.entities |= map(select((has("name") | not) or (.name | contains("belt") | not)))' | \
+factorio-blueprint encode
+The parsed JSON structure exposes a strict schema wrapped in either a "blueprint" or "blueprint_book" root key. Inside, the layout is broken down into positional coordinates, visual configurations, and control states:   
+
+JSON
+{
+  "blueprint": {
+    "item": "blueprint",
+    "label": "Standardized City Block",
+    "snap-to-grid": { "x": 32, "y": 32 },
+    "absolute-snapping": true,
+    "position-relative-to-grid": { "x": 0, "y": 0 },
+    "icons": [
+      { "signal": { "name": "roboport", "type": "item" }, "index": 1 }
+    ],
+    "entities": [
+      {
+        "entity_number": 1,
+        "name": "roboport",
+        "position": { "x": 16.0, "y": 16.0 },
+        "connections": {
+          "1": {
+            "red": [{ "entity_id": 2, "circuit_id": 1 }]
+          }
+        }
+      }
+    ]
+  }
+}
+The coordinates inside the "position" key map directly to floating-point values where the origin (0,0) represents the visual center of the copied area.   
+
+When duplicating train infrastructure, locomotives and cargo wagons preserve their physical states through the "orientation" key, which stores floating-point values from 0.0 to 1.0.   
+
+Logical data, such as circuit network configurations, are nested under the "connections" dictionary. This dictionary maps physical terminal points—such as the input or output terminals of an arithmetic combinator—to array structures for red and green wire configurations. Each connection record contains an entity_id and a circuit_id to establish the topological graph of the network.   
+
+Algorithmic Grid Alignment and Spacing Offsets
+Aligning blueprints to a consistent grid is essential when building large-scale, automated modular factories. While relative alignment is useful for simple, one-off builds, absolute alignment coordinates layouts to a global grid projected directly from the map origin (0,0). This global alignment ensures that independently placed blueprints seamlessly connect, even if they are placed with large gaps between them.   
+
+The visual snapping and alignment interface relies on two distinct offset configurations, which perform different adjustments in the blueprint editor:   
+
+Grid Position Offset (The Red Flag): This offset shifts the visual snapping boundary relative to the copied entities, allowing users to align the blueprint's boundary with key structural anchors like roboports or substations.   
+
+Absolute Grid Offset (position-relative-to-grid): This offset shifts both the blueprint's entities and its snapping boundary relative to the global grid. Because this shift applies to both elements together, it is not visible in the preview window.   
+
+To quickly align a new layout with existing structures on the map, players can use a coordinate "ping" shortcut. By holding CTRL + ALT and clicking on the top-left corner of the target area, the game displays the exact global coordinates of that tile in the console. Entering these values into the absolute X and Y coordinate fields under the position-relative-to-grid JSON structure ensures that the blueprint aligns with the target area.   
+
+This coordinate precision is especially important when aligning overlapping layouts like electrical grids. For example, when aligning substations, setting the snapping grid to a smaller size than the maximum cable length can cause adjacent placements to overlap and double up substations. To prevent this, the snapping grid must match the exact maximum connection distance of the power pole:   
+
+Snapping Grid Size=Maximum Cable Reach
+Adjusting the grid dimensions to account for this spacing ensures that substations connect at their maximum range without doubling up.   
+
+Furthermore, when working with rail networks, the alignment engine must respect a fundamental system constraint: rails have a hardcoded grid step of 2 tiles. Consequently, rail segments cannot exist on odd coordinate offsets, and they cannot be rotated or shifted by a single tile.   
+
+If a rail blueprint is built with asymmetrical snapping dimensions (e.g., an odd number of rail tiles horizontally and an even number vertically), rotating the layout can prevent it from snapping correctly to existing tracks.   
+
+Additionally, because of this directional sensitivity, any blueprint containing directional rail elements, rail signals, chain signals, or train stops is locked against flipping transformations (H or V) and can only be rotated in 90-degree steps (R).   
+
+Computational Logic of Advanced Blueprint Parameterization
+The introduction of blueprint parameterization in Version 2.0 changed the way players manage large-scale configurations. Rather than creating a separate blueprint for every single item, parameterization allows players to create generic, dynamic templates.   
+
+When setting up a parameterized blueprint, the system analyzes all signals, recipes, values, and text fields within the copied area. Users can then designate specific values as parameters (ranging from Parameter 0 to Parameter 9) in the parameterization GUI.   
+
+When placing the blueprint, a prompt window appears, asking the player to select the actual items or values to fill those slots. The game engine then dynamically rewrites the configuration data for all nested entities before generating their ghosts.   
+
+When designing these templates, creators must respect the consolidation rule: if the same signal, number, or item occurs multiple times within a blueprint, the parameterization engine automatically consolidates them into a single parameter.   
+
+To keep duplicate values independent (such as requesting 50 items from a chest but limiting production to a different count), the designer must temporarily assign unique dummy values (e.g., 50,51,52) during the initial setup. This unique mapping allows the engine to register them as separate variables, which can then be configured independently.   
+
+[Initial Setup with Unique Values]
+     ├─ Request Amount: 50  ──► Turned into Parameter x
+     └─ Production Limit: 51 ─► Turned into Parameter y
+
+[Resulting Template]
+     ├─ Parameter x can be set to 100 [cite: 21]
+     └─ Parameter y can be set to 200 [cite: 21]
+This dynamic rewriting supports sophisticated hierarchical relationships. By checking the "Ingredient of" property, a parameter can be linked to another higher-level parameter.   
+
+For example, if Parameter 0 is set to steel-plate, and Parameter 1 is configured as the "Ingredient of" Parameter 0, the engine queries the Factoriopedia's default recipe schema to automatically resolve Parameter 1 to iron-plate.   
+
+However, if Parameter 0 is set to an item with multiple ingredients, like an electronic-circuit, Parameter 1 cannot automatically resolve the recipe unless additional parameters are pre-configured to store the extra ingredients.   
+
+Additionally, this automatic resolution strictly references the base recipes in the Factoriopedia and does not account for alternate recipes or recycling loops.   
+
+Numerical parameterization allows for mathematical scaling within layouts. Each numerical input can be assigned a variable name (e.g., x), allowing subsequent dependent parameters to evaluate algebraic formulas using standard operators (+, -, *, /).   
+
+This allows players to create self-scaling layouts, such as adjusting requester chest targets based on stack sizes or limiting production counts using basic math formulas.   
+
+To build these formulas without adding physical combinators to the final layout, designers can place a temporary "dummy" constant combinator in the blueprint. This dummy combinator acts as a configuration block to set up variables in the blueprint editor, and can be safely deleted once the layout is placed.   
+
+Automation Planners and Operational Lifecycle Management
+To manage large-scale layout modifications, players rely on deconstruction and upgrade planners. These utilities are fully integrated with the blueprint library, allowing players to store, organize, and share custom configurations alongside their standard blueprints.   
+
+The deconstruction planner allows for highly targeted clearing. By default, a blank planner marks all entities and tiles in its selection area for removal.   
+
+When configured with filters, it can operate in either Whitelist or Blacklist mode across its Entities and Tiles tabs, which support up to 30 filters each.   
+
+In Whitelist mode, the planner only targets the specified items, which is useful for tasks like removing only trees and rocks while leaving power poles intact.   
+
+When a structure is marked for deconstruction, its behavior is altered immediately to prevent resource waste and system disruption:   
+
+Functional Disconnection: Marked entities cease functioning immediately; transport belts stop moving, assemblers halt production, and defensive walls disconnect from adjacent blocks.   
+
+Defensive Exceptions: Laser turrets, gun turrets, and artillery remain fully operational while marked, ensuring defenses stay active during base remodels.   
+
+Robot Priorities: Robots prioritize delivering deconstructed items directly to buffer or requester chests with unfulfilled requests, reducing the need to route materials through storage hubs.   
+
+To target abstract game states, the deconstruction planner provides specialized filters under the "Unsorted" section of its Entities tab:   
+
+Special Filter Icon	Operational Target	Behavioral Interaction
+Entity ghost	
+Unbuilt structure ghosts.
+
+Removes the ghost template immediately without queuing a deconstruction task.
+
+Item on ground	
+Spilled or dropped resources.
+
+Directs robots to pick up loose items, ignoring items on belts.
+
+Item request slot	
+Pending modules or fuel deliveries.
+
+Cancels logistics requests to insert items into structures.
+
+Tile ghost	
+Ghost floor designs.
+
+Cancels pending tiling orders without affecting placed flooring.
+
+  
+To manage floor tiles (such as concrete or brick), the deconstruction planner provides four distinct interaction modes:   
+
+Normal (Default): Tiles are only marked for deconstruction if no entities or ghosts exist in the selected area, allowing players to clear machines without ripping up the floor.   
+
+Always: Tiles are always marked for deconstruction, even if they are underneath active machinery.   
+
+Never: Tiles are completely ignored, allowing players to demolish factories while preserving the underlying concrete.   
+
+Only: Only constructed tiles are targeted; all entities, machines, and ghosts are ignored.   
+
+To modernize existing factories, players use the upgrade planner. A blank upgrade planner applies automatic transition rules to upgrade eligible entities to their next highest tier, while a filtered planner supports up to 24 custom replacement pairs. The default behaviors and exclusions of a blank upgrade planner are detailed below:   
+
+Entity Category	Initial State	Upgraded State	Target Eligibility
+Transport Belts	Basic (Yellow)	Fast (Red) → Express (Blue)	
+Automatically Upgraded.
+
+Splitters	Basic (Yellow)	Fast (Red) → Express (Blue)	
+Automatically Upgraded.
+
+Inserters	Basic Inserter	Fast Inserter	
+Automatically Upgraded.
+
+Assembling Machines	Machine 1	Machine 2 → Machine 3	
+Automatically Upgraded.
+
+Furnaces	Stone Furnace	Steel Furnace	
+Automatically Upgraded.
+
+Electrical Networks	Medium Pole / Substation	Large Pole / Advanced Tiers	
+Excluded from Blank Planners.
+
+Logistic Chests	Storage / Provider Chests	Requester / Buffer Chests	
+Excluded from Blank Planners.
+
+Circuit Networks	Rail Signals / Combinators	Advanced Logic Components	
+Excluded from Blank Planners.
+
+  
+Robotics Integration and Active Scaling Equations
+When a blueprint is placed, the construction of its ghost entities is handled by the automated logistics network. This construction queue is managed by stationary roboports and mobile, player-centered personal roboports.   
+
+Personal roboports allow players to act as mobile construction hubs, deploying robots directly from their personal inventory. This mobile equipment requires an active power supply within modular armor or a Spidertron. It will only deploy robots if its internal energy buffer is charged above 20%.   
+
+Equipping multiple personal roboports scales the player's construction capabilities. This scaling increases the active robot limit, expands the construction area, and adds more charging ports. The range of this construction area scales according to the formula:   
+
+Range= 
+N×30×30
+
+​
+ 
+where N represents the number of equipped personal roboports.   
+
+In addition, the quality of the personal roboport scales its internal capacity and charging speed. High-quality roboports increase the number of supported robots and add extra charging stations to return robots to the player's inventory faster. The specific scaling metrics for these equipment configurations are detailed below:   
+
+Roboport Quality Level	Internal Buffer Capacity	Maximum Power Draw	Robot Capacity Scale	Charging Station Count
+Normal	35 MJ	2.0 MW	10 robots	
+2 stations
+
+Uncommon	35 MJ	3.9 MW	13 robots	
+3 stations
+
+Rare	35 MJ	5.6 MW	16 robots	
+4 stations
+
+Epic	35 MJ	6.65 MW	19 robots	
+5 stations
+
+Legendary	35 MJ	8.75 MW	25 robots	
+7 stations
+
+  
+Version 2.0 Paradigm Shifts and Modding Hazards
+The launch of Version 2.0 and the Space Age expansion introduced significant upgrades to the blueprint and layout management systems. These updates expanded the automation mechanics and simplified layout customization.   
+
+One of the most notable additions is "Super Force Building" mode, activated by holding CTRL + SHIFT while placing a blueprint. This mode goes beyond standard force building—which only clears natural obstacles like trees and rocks—by allowing blueprints to overwrite player-placed structures.   
+
+When active, the system automatically tags conflicting buildings for deconstruction, places ghost landfill (or planet-specific foundations like ice platforms on Aquilo) over water, and attempts to maintain transport line integrity.   
+
+For example, if a blueprint is placed over existing belts, the game will attempt to automatically substitute underground belts of the same tier to keep the factory running.   
+
+[Existing Transport Belt]
+           │
+           ▼  [Super Force Build Placed Over Belt]
+           │
+[Dynamic Reconstruction]
+           │
+[Automatic Underground Belt Substitution]
+This super-forced placement is also available during manual building, allowing players to quickly stamp down individual structures over existing layouts.   
+
+To simplify player inventories, several common logistics items were turned into abstract "free" tools on the shortcut bar in Version 2.0. Red and green circuit wires, copper cables for rewiring power poles, and targeting remotes no longer require crafting or physical inventory space. Instead, they can be accessed at any time directly from the interface.   
+
+Additionally, filter configurations were unified across all inserter types (which now support five filter slots), and filter-specific inserters were removed from the game.   
+
+However, loading older blueprints into Version 2.0 or migrating layouts between modded and unmodded environments can introduce structural compatibility hazards:   
+
+Curve Mechanics: The overhaul of train physics in Version 2.0 altered rail curve paths. While straight rails remain compatible, older curved rail layouts saved in blueprints can break when loaded, requiring players to rebuild their rail books to align with the new turning geometries.   
+
+Recipe Database Discrepancies: When a player joins a modded server (such as Space Exploration), the game dynamically updates its recipe database. If a mod alters or replaces standard recipe categories, some blueprints can become corrupted.   
+
+The Migration Lock: When modded structures mismatch base recipe definitions, the game can fail to recognize the transition and permanently lock affected blueprints as "not editable". This can wipe standard recipes (such as replacing electronic circuits with wood-based recipes), leaving assemblers blank even after the player returns to an unmodded game.   
+
+To mitigate these risks and prevent data loss, players should back up their blueprint library databases before updating the game or joining highly customized modded servers. Utilizing separate blueprint books for specific mod configurations ensures that profile-linked master files remain protected from mod-migration errors.   
+

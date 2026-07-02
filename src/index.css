@@ -14,18 +14,18 @@
   --th-bg-rf:      #161b22;
   --th-bg-input:   #0d0f14;
 
-  --th-br:         #111111;
+  --th-br:         #1a1819;
   --th-br-hdr:     #1a1919;
   --th-br-mid:     #2a2d35;
   --th-br-lt:      #3a3d47;
   --th-br-rf:      #30363d;
-  --th-br-sep:     #1e1c1e;
+  --th-br-sep:     #2c282c;
 
   --th-tx:         #FFE6C0;
-  --th-tx-sec:     #A19E9A;
-  --th-tx-mut:     #6b6060;
-  --th-tx-vmut:    #5a5458;
-  --th-tx-faint:   #3a3638;
+  --th-tx-sec:     #C0BCB8;
+  --th-tx-mut:     #958e8e;
+  --th-tx-vmut:    #7e7880;
+  --th-tx-faint:   #5c585a;
   --th-tx-body:    #c9d1d9;
 
   --th-grad-from:  #2c2a2b;
